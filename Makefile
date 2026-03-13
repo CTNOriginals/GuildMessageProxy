@@ -31,7 +31,7 @@ CURRENT_VERSION_MAJOR := $(NEXT_MAJOR).0.0
 endif
 
 PROJECT_ENTRY := "./cmd/bot/main.go"
-WGO_INCLUDE := "-file .go"
+WGO_INCLUDE := -file .go
 
 .DEFAULT_GOAL := help
 # --- Version commands ---
