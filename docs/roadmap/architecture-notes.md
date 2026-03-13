@@ -30,7 +30,7 @@ This is an initial idea; names and boundaries can be adjusted as design becomes 
       - Handler/execute functions for those subcommands, with access to shared helpers from `internal/handlers`.
       - Any command-specific validation and option parsing.
     - Other command groups (for example, `admin`, `config`) get their own files with a similar pattern.
-    - `internal/commands/registry.go` (or `register.go`) wires all command group definitions into a single registration function.
+    - `internal/commands/registry.go` holds command definitions and sync logic. On startup: fetch existing commands, compare with desired definitions, bulk overwrite only when different. No separate registration binary.
   - Keep shared helpers out of here unless they are truly command-specific.
 - `internal/handlers`
   - Reusable building blocks used by multiple commands (this is the modular part, without naming it after a single command).
@@ -46,8 +46,9 @@ This is an initial idea; names and boundaries can be adjusted as design becomes 
     - Minimal per-guild configuration needed for MVP.
   - Start with an in-memory implementation; design interfaces so storage can be swapped for a database later.
 
-Discord integration helpers:
+Discord integration:
 
+- Proxy messages are posted via channel webhooks (custom avatar and username per message). Handlers create/use webhooks per channel as needed.
 - For now, avoid a dedicated "Discord API wrapper" package.
   - Most `discordgo` calls will naturally live in the command handlers or `internal/handlers`.
   - If common patterns emerge (permission error translation, message building helpers, consistent response helpers), introduce a small, narrowly named helper package later (for example `internal/discordutil`) instead of a broad `discordapi`.
@@ -64,6 +65,16 @@ This layout is meant to keep user-facing entry points (`commands`) close to thei
 - Event handling:
   - Prioritize slash commands and interaction-based flows for predictability and better UX.
   - Keep message-based commands (if any) minimal and clearly separated.
+
+### 4. Command Registration (Startup Sync)
+
+Commands sync on every bot startup rather than via a separate registration binary:
+
+1. Fetch existing commands (GET) for the target scope (guild or global).
+2. Compare desired definitions with fetched (name, description, options). Ignore Discord-only fields (id, version).
+3. Only if different: bulk overwrite (PUT) with the full desired list.
+
+Use `--guild=<id>` for development (instant propagation) or `--global` for production. Optional `--no-sync` skips sync when commands are known-good.
 
 As new features are specified in `docs/roadmap`, this file should be updated with concrete interfaces, key structs, and important invariants.
 
