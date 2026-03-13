@@ -8,8 +8,8 @@ It is intentionally lightweight and will be refined as features mature.
 ### 1. Key Risks
 
 - **Impersonation and trust**
-  - Users might use proxy messages to make it appear that someone else said something they did not.
-  - Even if the bot is the technical author, presentation can still mislead readers.
+  - Proxy messages are posted via webhooks, which support custom avatar and username per message. Users could configure messages to appear as if another user said them.
+  - Clear attribution and governance are needed to mitigate impersonation risk.
 - **Abuse and spam**
   - High-volume or automated use of proxy messages could flood channels.
   - Malicious users could repeatedly edit messages to evade moderation.

@@ -37,7 +37,7 @@ Commands are grouped into intuitive categories using subcommands. For composing 
 3. **Preview**
    - Bot responds ephemerally with:
      - A rendered preview of the message (as close as possible to the final output).
-     - Metadata summary: target channel, posting identity (for MVP: the bot message but attributed to the user in text, not impersonation).
+     - Metadata summary: target channel, posting identity. Posting uses channel webhooks (custom avatar/username per message); for MVP, identity options may be restricted.
      - Buttons: `Post` and `Cancel`.
 4. **Post**
    - On `Post` (or via a `/compose post` subcommand, depending on the final UX):
@@ -46,7 +46,7 @@ Commands are grouped into intuitive categories using subcommands. For composing 
    - On `Cancel`:
      - Bot dismisses the preview and discards the draft.
 
-Assumption: For the MVP, the actual visible author will remain the bot; "post as user" will initially be represented textually (e.g. "Requested by @User") until a more robust impersonation/governance model is designed.
+Assumption: Posting will use channel webhooks, which support custom avatar and username per message. For MVP, the visible author identity may be restricted (e.g. bot-only or text attribution like "Requested by @User") until governance is in place.
 
 #### 2.2 Basic Edit Flow
 
@@ -71,6 +71,7 @@ MVP restriction: Only the original requester can edit. Broader editing permissio
 
 - **Per-bot configuration**
   - Bot token and basic environment configuration via `.env` (already used in `cmd/bot/main.go`).
+  - Command sync scope: `--guild=<id>` for dev (instant) or `--global` for prod. Commands sync on startup (fetch, diff, bulk overwrite when changed).
 - **Per-guild configuration (MVP)**
   - Keep configuration extremely simple:
     - Optional list of roles allowed to use the `compose` command group at all.

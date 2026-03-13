@@ -7,7 +7,7 @@ GuildMessageProxy is a Discord bot that lets server members compose rich message
 ### Core Capabilities
 
 - **Rich message composition**: Compose messages with unique styling and markdown, including embeds.
-- **Flexible authorship**: Post messages as yourself, as the bot, or (with the right safeguards) as another user.
+- **Flexible authorship**: Post messages as yourself, as the bot, or (with the right safeguards) as another user. Uses channel webhooks with custom avatar and username per message.
 - **Collaborative editing**: Allow others to propose and apply edits to the posted message without needing the original user online.
 - **Approval workflows (planned)**: Support voting/approval to gate posting, editing, or deleting important messages.
 
@@ -32,4 +32,8 @@ This `docs/roadmap` folder is the home for planning and design docs.
 - **High-level architecture and Go layout**: `architecture-notes.md`
 
 As new features are explored, additional focused docs (for example `feature-voting-system.md`) can be added alongside these.
+
+### Agent Navigation
+
+For AI agents and developers: navigation docs live in `docs/` (parent folder). Start at `docs/INDEX.md` for the project map, architecture, route map, and templates.
 
