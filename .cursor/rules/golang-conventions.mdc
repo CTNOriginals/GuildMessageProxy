@@ -1,0 +1,21 @@
+---
+description: Go code conventions for this project. Add new conventions here as needed.
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go Code Conventions
+
+Project-specific Go conventions. Add new sections as conventions are adopted.
+
+## Variable Declarations
+
+Prefer `var` over `:=` (walrus operator) when defining new variables. The `var` keyword is easier to spot and keeps the code more readable.
+
+**Exception:** Use `:=` in `for range` loops when defining loop-scoped variables:
+
+```go
+for i, v := range s {
+    // ...
+}
+```

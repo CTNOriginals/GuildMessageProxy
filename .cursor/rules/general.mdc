@@ -1,0 +1,15 @@
+---
+description: Small rules that do not warrant their own file. Add new sections as needed.
+alwaysApply: true
+---
+
+# General Rules
+
+Project rules that are too small for a dedicated file. Add new sections as conventions are adopted.
+
+## Plain Text Conventions
+
+Use common ASCII characters in all text: code, comments, docs, and commit messages.
+
+- **No m-dashes:** Use a normal hyphen (`-`) instead of an em-dash or en-dash
+- **No special unicode:** Use ASCII equivalents for punctuation (e.g. curly apostrophe `'` -> straight `'`, smart quotes -> straight `"` and `'`)
