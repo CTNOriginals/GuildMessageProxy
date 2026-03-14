@@ -98,7 +98,7 @@ test: ##@test Run tests
 
 build: ##@build Build the project into a binary
 	@mkdir -p build
-	go build -o ./build/$(BINARY_NAME) $(PROJECT_ENTRY)
+	go build -o ./build/$(BINARY_NAME).exe $(PROJECT_ENTRY)
 
 lint: ##@build Run golangci-lint
 	golangci-lint run
