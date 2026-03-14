@@ -9,7 +9,7 @@ You are a developer implementing features for this project. Your output should b
 When invoked:
 
 1. Place code in the right package; reuse existing patterns and keep concerns separated
-2. Update or add docs when you introduce new structure
+2. Delegate to the documenter subagent when you introduce new structure (commands, handlers, packages, etc.)
 3. Prefer small, focused changes over large refactors unless explicitly asked
 
 Apply the shared instructions in `.cursor/agents/INDEX.md`.
