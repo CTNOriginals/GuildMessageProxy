@@ -30,12 +30,14 @@ CURRENT_VERSION_MINOR := $(MAJOR).$(NEXT_MINOR).0
 CURRENT_VERSION_MAJOR := $(NEXT_MAJOR).0.0
 endif
 
-PROJECT_ENTRY := "./cmd/bot/main.go"
-WGO_INCLUDE := -file .go
+# Go cannot specify a default entry point in go.mod; use PROJECT_ENTRY explicitly.
+PROJECT_ENTRY := ./cmd/bot/main.go
+BINARY_NAME   := bot
+WGO_INCLUDE   := -file .go
 
 .DEFAULT_GOAL := help
 # --- Version commands ---
-.PHONY: help list version proto
+.PHONY: help list version
 
 help: ##@help Display all commands and descriptions
 	@awk 'BEGIN {FS = ":.*##@"; printf "\nUsage:\n  make <target>\n"} \
@@ -76,17 +78,14 @@ list: ##@help List all targets and their commands
 version: ##@help Log the current version
 	@echo "v$(CURRENT_VERSION_PATCH)"
 
-# proto: ##@help For prototyping makefile functionality
-# 	@echo hello "$@"
-
 # -- Git --
-.PHONY: git-graph adog
+.PHONY: git-graph
 
 git-graph: ##@git Log decorated graph
 	git log --all --decorate --oneline --graph
 
 # -- Project --
-.PHONY: run wrun debug test build
+.PHONY: run wrun test build lint tidy
 
 run: ##@run Run normally. Pass arguments like so: args="arg1 arg2 ...".
 	go run $(PROJECT_ENTRY) $(args)
@@ -94,14 +93,18 @@ run: ##@run Run normally. Pass arguments like so: args="arg1 arg2 ...".
 wrun: ##@run Run and watch for file changes. Requires wgo: https://github.com/bokwoon95/wgo
 	wgo $(WGO_INCLUDE) go run $(PROJECT_ENTRY) $(args)
 
-debug: ##@run Run and watch with the --test flag. Requires wgo: https://github.com/bokwoon95/wgo
-	wgo $(WGO_INCLUDE) go run . $(args) --test
-
-test: ##@run go test and watch. Requires wgo: https://github.com/bokwoon95/wgo
-	wgo $(WGO_INCLUDE) go test -v ./...
+test: ##@test Run tests
+	go test -v ./...
 
 build: ##@build Build the project into a binary
-	go build -o ./build/ $(PROJECT_ENTRY)
+	@mkdir -p build
+	go build -o ./build/$(BINARY_NAME) $(PROJECT_ENTRY)
+
+lint: ##@build Run golangci-lint
+	golangci-lint run
+
+tidy: ##@build Run go mod tidy
+	go mod tidy
 
 # -- Release --
 .PHONY: tag patch minor major
