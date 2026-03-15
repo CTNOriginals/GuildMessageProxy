@@ -12,14 +12,16 @@ GuildMessageProxy/
 |   |
 |-- internal/                     [PLANNED - not yet created]
 |   |-- events/
-|   |   |-- interaction_create.go [PLANNED] Routes all interactions (slash, buttons, context) to definitions
-|   |   |-- guild_create.go       [PLANNED] Update DB when bot joins a guild
-|   |   |-- guild_delete.go       [PLANNED] Update DB when bot leaves a guild
-|   |   |-- error.go              [PLANNED] Handle Discord API errors (log, user feedback, optional embed)
+|   |   |-- interaction_create.go [PLANNED] Routes all interactions (slash, buttons, select, modal, context) to definitions
+|   |   |-- guild_create.go       [PLANNED] Store guild metadata and config when bot joins
+|   |   |-- guild_delete.go       [PLANNED] Remove/soft-delete guild data when bot leaves
+|   |   |-- ready.go              [PLANNED] Optional: bot startup confirmation, log ready state
+|   |   |-- error.go              [PLANNED] Handle REST/gateway errors (log, user feedback, optional embed)
 |   |
 |   |-- commands/
+|   |   |-- types.go              [PLANNED] TSlashCommand, TButton, TSelectMenu, TModalSubmit, TMessageCommand, TUserCommand + const blocks
 |   |   |-- compose.go            [PLANNED] /compose group + subcommands
-|   |   |-- registry.go          [PLANNED] Command definitions + startup sync (fetch, diff, bulk overwrite)
+|   |   |-- registry.go           [PLANNED] Command definitions + startup sync (fetch, diff, bulk overwrite)
 |   |   |-- (admin.go, config.go) [FUTURE] Other command groups
 |   |
 |   |-- handlers/
@@ -43,6 +45,7 @@ GuildMessageProxy/
 |   |   |-- overview.md          [EXISTS] Project purpose
 |   |   |-- mvp-feature-plan.md   [EXISTS] MVP flows
 |   |   |-- architecture-notes.md [EXISTS] Go layout notes
+|   |   |-- infrastructure.md     [EXISTS] Full infrastructure design (types, naming, guild lifecycle, errors)
 |   |   |-- permissions-and-safety-notes.md [EXISTS] Safety
 |
 |-- .env.example                 [EXISTS] Env var template
@@ -62,7 +65,8 @@ GuildMessageProxy/
 | What | Where |
 |------|-------|
 | Entry point, config load, session init | `cmd/bot/main.go` |
-| Event handlers (InteractionCreate, GuildCreate, GuildDelete, Error) | `internal/events/` |
+| Event handlers (InteractionCreate, GuildCreate, GuildDelete, Ready, Error) | `internal/events/` |
+| Interaction types (TSlashCommand, TButton, etc.) | `internal/commands/types.go` or `internal/interactions/types.go` |
 | Slash command definitions + handlers | `internal/commands/<group>.go` |
 | Command definitions + startup sync | `internal/commands/registry.go` |
 | Reusable logic (preview, post, permissions) | `internal/handlers/` |

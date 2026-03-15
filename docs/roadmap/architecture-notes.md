@@ -62,20 +62,28 @@ This layout is meant to keep user-facing entry points (`commands`) close to thei
 **This infrastructure must be developed before main features.** It covers event handlers, interaction type systems, and error handling that make the frontend user experience work. All of it should be in place and functional before building compose, post, edit, etc.
 
 - **internal/events package**
-  - `interaction_create.go` - Receives all interaction types (slash commands, buttons, message context commands). Routes to the correct definition and execution based on type and ID.
-  - `guild_create.go` - Updates the database when the bot joins a guild.
-  - `guild_delete.go` - Updates the database when the bot leaves a guild.
-  - `error.go` - Handles Discord API error events: log to terminal, inform the user who triggered it, optionally send formatted error embed to a logging channel.
+  - `interaction_create.go` - Receives all interaction types (slash, buttons, select menus, modals, message/user context commands). Routes to the correct definition and execution based on type and ID.
+  - `guild_create.go` - Stores guild metadata and per-guild config when the bot joins a guild.
+  - `guild_delete.go` - Removes or soft-deletes guild config and proxy metadata when the bot leaves.
+  - `ready.go` - Optional: bot startup confirmation, log ready state.
+  - `error.go` - Handles errors from REST API responses and gateway close codes (see Error handling below).
 
 - **Interaction type system**
-  - Custom types: `TSlashCommand`, `TButton` (and equivalents for other interaction types).
-  - Const lists for each type. Convention for IDs: buttons use `button_<context>_<action>`.
-  - Maps route types to definitions: `MCommandDefinitions map[TSlashCommand]SCommandDef`, and similar for buttons.
+  - Custom types: `TSlashCommand`, `TButton`, `TSelectMenu`, `TModalSubmit`, `TMessageCommand`, `TUserCommand`.
+  - Const lists for each type. ID conventions: `button_<context>_<action>`, `select_<context>_<action>`, `modal_<context>_<action>`.
+  - Maps route types to definitions: `MCommandDefinitions`, `MButtonDefinitions`, `MSelectMenuDefinitions`, `MModalSubmitDefinitions`, etc.
+  - See [docs/roadmap/infrastructure.md](./infrastructure.md) for the full design.
+
+- **Guild lifecycle and storage**
+  - GuildCreate: Store guild metadata (id, name), per-guild config (allowed roles, default channel, logging channel). Use upsert; GuildCreate can fire on re-availability.
+  - GuildDelete: Remove or soft-delete guild config and proxy metadata. Document policy: delete, soft-delete, or retention. Orphaned messages fail on edit; handlers treat unknown guild/404 appropriately.
 
 - **Error handling**
-  - Discord emits an error event on API failures. The events package handles it with logging, user feedback, and optional channel embed.
+  - Discord does NOT send a dedicated gateway "Error" event for REST failures. Errors come from: (a) REST API responses (HTTP + JSON), (b) Gateway close codes, (c) Gateway opcodes.
+  - Categorization: Transient (429, 502 - retry), Permanent auth (40001 - no retry), Permanent resource (10003, 10008 - clear user message), Validation (50035 - field-specific).
+  - Flow: log to terminal, inform user, optionally send formatted error embed to logging channel.
 
-The infrastructure is designed for extensibility so post-MVP features (additional buttons, context commands, etc.) are supported without major refactors.
+The infrastructure is designed for extensibility so post-MVP features (additional buttons, context commands, select menus, modals, voting, etc.) are supported without major refactors.
 
 ---
 
@@ -99,4 +107,16 @@ Commands sync on every bot startup rather than via a separate registration binar
 Use `--guild=<id>` for development (instant propagation) or `--global` for production. Optional `--no-sync` skips sync when commands are known-good.
 
 As new features are specified in `docs/roadmap`, this file should be updated with concrete interfaces, key structs, and important invariants.
+
+---
+
+### 6. Post-MVP Infrastructure
+
+Planned extensions beyond MVP:
+
+- **Voting**: Reaction handlers (`MESSAGE_REACTION_ADD`), approval buttons (`TButton`), state machine (Draft -> Pending -> Approved/Rejected), vote storage.
+- **Admin/Config**: Uses `TSlashCommand`; no new interaction types.
+- **Collaborative editing**: Edit button on messages, permission middleware, optional message context command "Edit this message".
+
+See [docs/roadmap/infrastructure.md](./infrastructure.md#post-mvp-infrastructure) for details.
 

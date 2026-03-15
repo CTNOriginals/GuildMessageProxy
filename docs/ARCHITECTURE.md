@@ -50,14 +50,17 @@ This is where the compose/preview/post steps become reusable functions, independ
 
 ### internal/events
 
-Event handlers that receive Discord gateway events and route them to the correct logic. All event handlers live in this package. Designed for extensibility so post-MVP features (buttons, context commands, etc.) are supported.
+Event handlers that receive Discord gateway events and route them to the correct logic. All event handlers live in this package. Designed for extensibility so post-MVP features (buttons, context commands, select menus, modals, etc.) are supported.
 
 | File | Responsibility |
 |------|----------------|
-| `interaction_create.go` | Receives all interaction types (slash commands, buttons, message context commands). Routes by interaction type and custom_id/command name to the correct definition and execution. |
-| `guild_create.go` | Fired when the bot joins a guild. Updates the database (e.g. register guild, default config). |
-| `guild_delete.go` | Fired when the bot leaves a guild. Updates the database (e.g. remove guild data). |
-| `error.go` | Handles Discord API error events. Logs to terminal, informs the user who triggered it, optionally sends a formatted error embed to a logging channel. |
+| `interaction_create.go` | Receives all interaction types (slash, buttons, select menus, modals, message/user context commands). Routes by interaction type and custom_id/command name to the correct definition and execution. |
+| `guild_create.go` | Fired when the bot joins a guild. Stores guild metadata and per-guild config (see [Guild Lifecycle](#guild-lifecycle-and-storage)). |
+| `guild_delete.go` | Fired when the bot leaves a guild. Removes or soft-deletes guild config and proxy metadata. |
+| `ready.go` | Optional: bot startup confirmation, log ready state. |
+| `error.go` | Handles errors from REST API responses and gateway close codes (see [Error Handling](#error-handling)). Logs to terminal, informs the user who triggered it, optionally sends a formatted error embed to a logging channel. |
+
+**Handler registration**: `main` wires handlers via `session.AddHandler` for each event (InteractionCreate, GuildCreate, GuildDelete, Ready, etc.).
 
 See [ROUTE_MAP.md](./ROUTE_MAP.md#interaction-routing) for how InteractionCreate routes to command definitions.
 
@@ -85,27 +88,72 @@ This keeps commands in sync with code without a separate registration step. Use 
 
 Custom types route interactions to their definitions and execution:
 
-- `type TSlashCommand string` - value is the command name (e.g. `"compose-create"`)
-- `type TButton string` - value is the button `custom_id` (e.g. `"button_compose-create_post"`)
-- Const lists for each interaction type (slash commands, buttons, etc.)
-- Convention for interaction IDs: buttons use `"button_<context>_<action>"` (e.g. `button_compose-create_post`)
+| Project Type | Discord Type | Identification | Naming Convention |
+|--------------|--------------|----------------|-------------------|
+| `TSlashCommand` | Application Command (slash) | `data.name` | `context-action` (e.g. `compose-create`) |
+| `TMessageCommand` | Message context menu | `data.name` | `context-action` |
+| `TUserCommand` | User context menu | `data.name` | `context-action` |
+| `TButton` | Button | `data.custom_id` | `button_<context>_<action>` |
+| `TSelectMenu` | String/user/role/channel/mentionable select | `data.custom_id` | `select_<context>_<action>` |
+| `TModalSubmit` | Modal form submission | `data.custom_id` | `modal_<context>_<action>` |
+| (none) | Autocomplete | command + option | Handled within slash command or shared handler keyed by command+option |
 
-Maps route interactions to definitions:
+**Autocomplete**: No dedicated type. Handled inside slash command handlers or a shared handler keyed by command name + option name.
+
+**Definition structs**:
 
 ```go
+type SCommandDef struct {
+    Definition   *discordgo.ApplicationCommand
+    Execute      func(s *discordgo.Session, i *discordgo.InteractionCreate)
+    Autocomplete func(s *discordgo.Session, i *discordgo.InteractionCreate) // optional
+}
 type MCommandDefinitions map[TSlashCommand]SCommandDef
-var CommandDefinitions MCommandDefinitions = MCommandDefinitions{...}
+
+type SButtonDef struct {
+    Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
+}
+type MButtonDefinitions map[TButton]SButtonDef
+
+type SSelectMenuDef struct { Execute func(...) }
+type MSelectMenuDefinitions map[TSelectMenu]SSelectMenuDef
+
+type SModalSubmitDef struct { Execute func(...) }
+type MModalSubmitDefinitions map[TModalSubmit]SModalSubmitDef
 ```
 
-The bot identifies an interaction by its type and looks up the definition in the appropriate map. See [GLOSSARY.md](./GLOSSARY.md) for term definitions.
+The bot identifies an interaction by its type and looks up the definition in the appropriate map. See [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md) for the full design and [GLOSSARY.md](./GLOSSARY.md) for term definitions.
 
-## Error Handling (Discord API Error Event)
+## Error Handling
 
-Discord emits an error event when API errors occur. The `internal/events` package handles it by:
+Discord does **not** send a dedicated gateway "Error" event for REST failures. Errors come from:
+
+- **(a) REST API responses** - HTTP status + JSON body (e.g. 429 rate limit, 50035 validation)
+- **(b) Gateway close codes** - Connection-level (e.g. 4001 reconnect, 4004 invalid token)
+- **(c) Gateway opcodes** - Event payloads that indicate failure
+
+The `internal/events` package handles errors by:
 
 1. **Logging** - Write the error to the terminal
-2. **User feedback** - Inform the user who triggered the error that something went wrong
+2. **User feedback** - Inform the user who triggered it that something went wrong
 3. **Logging channel** (optional) - Send a formatted error embed to a configured channel (polish feature)
+
+**Error categorization**:
+
+| Category | Example Codes | Handling |
+|----------|---------------|----------|
+| Transient | 429 (rate limit), 502 (server error) | Retry with backoff |
+| Permanent auth | 40001 (unauthorized) | No retry; log and notify |
+| Permanent resource | 10003 (unknown channel), 10008 (unknown message) | Clear user message; handlers treat unknown guild/404 appropriately |
+| Validation | 50035 (invalid form body) | Field-specific feedback to user |
+
+See [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md#error-handling) for the full handling flow.
+
+## Guild Lifecycle and Storage
+
+- **GuildCreate**: Store guild metadata (id, name), per-guild config (allowed roles, default channel, logging channel). Use upsert; GuildCreate can fire on re-availability (e.g. bot comes back online).
+- **GuildDelete**: Remove or soft-delete guild config and proxy metadata. Document policy: either delete, soft-delete, or retention. Orphaned messages fail on edit; handlers treat unknown guild/404 appropriately.
+- **Cleanup policy**: Choose one: hard delete on leave, soft-delete with retention window, or retain for audit. Document in `internal/storage` and `docs/roadmap/infrastructure.md`.
 
 ## Discord Integration
 

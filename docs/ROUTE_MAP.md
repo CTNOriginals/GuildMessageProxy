@@ -62,27 +62,32 @@ All interactions flow through `internal/events/interaction_create.go`. The handl
 
 ### Type System
 
-Custom types identify each interaction:
+All interaction types and their routing:
 
-- `TSlashCommand` - value is the command name (e.g. `"compose-create"`)
-- `TButton` - value is the button `custom_id` (e.g. `"button_compose-create_post"`)
+| Interaction Type | Project Type | Identification | Naming Convention |
+|------------------|--------------|----------------|-------------------|
+| Slash command | `TSlashCommand` | `data.name` | `context-action` (e.g. `compose-create`) |
+| Message context menu | `TMessageCommand` | `data.name` | `context-action` |
+| User context menu | `TUserCommand` | `data.name` | `context-action` |
+| Button | `TButton` | `data.custom_id` | `button_<context>_<action>` |
+| Select menu | `TSelectMenu` | `data.custom_id` | `select_<context>_<action>` |
+| Modal submit | `TModalSubmit` | `data.custom_id` | `modal_<context>_<action>` |
+| Autocomplete | (none) | command + option | Handled in slash handler or shared handler |
 
-Const lists define all valid values per type. Maps route types to definitions:
-
-```go
-type MCommandDefinitions map[TSlashCommand]SCommandDef
-var CommandDefinitions MCommandDefinitions = MCommandDefinitions{...}
-```
+Const lists define all valid values per type. Maps route types to definitions (e.g. `MCommandDefinitions`, `MButtonDefinitions`, `MSelectMenuDefinitions`, `MModalSubmitDefinitions`).
 
 The bot looks up the interaction by its type in the appropriate map and invokes the associated definition/execute logic.
 
 ### Flow
 
 1. **Slash commands**: Synced on startup via `registry.SyncCommands(session, guildID)`. Fetches existing, diffs against desired definitions, bulk overwrites only when changed. Scope: `--guild=<id>` (dev) or `--global` (prod). InteractionCreate receives the event, maps `ApplicationCommandData().Name` to `TSlashCommand`, looks up in `CommandDefinitions`, and runs the execute function.
-2. **Button clicks** (Post, Cancel, Apply): InteractionCreate receives the event, reads `MessageComponentData().CustomID`, maps to `TButton`, looks up in the button definitions map, and runs the execute function.
-3. **Other interaction types**: Same pattern - identify by type and ID, look up in the appropriate map, execute.
+2. **Button clicks** (Post, Cancel, Apply): InteractionCreate receives the event, reads `MessageComponentData().CustomID`, maps to `TButton`, looks up in `MButtonDefinitions`, and runs the execute function.
+3. **Select menus**: InteractionCreate reads `MessageComponentData().CustomID`, maps to `TSelectMenu`, looks up in `MSelectMenuDefinitions`, runs execute. Same pattern for string/user/role/channel/mentionable selects.
+4. **Modal submits**: InteractionCreate reads `ModalSubmitData().CustomID`, maps to `TModalSubmit`, looks up in `MModalSubmitDefinitions`, runs execute.
+5. **Message/User context commands**: InteractionCreate reads `ApplicationCommandData().Name`, maps to `TMessageCommand` or `TUserCommand`, looks up in the appropriate map, runs execute.
+6. **Autocomplete**: Handled within slash command handler or shared handler keyed by command+option.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) for the type system and [PROJECT_MAP.md](./PROJECT_MAP.md) for event handler file locations.
+See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) and [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md) for the full type system. See [PROJECT_MAP.md](./PROJECT_MAP.md) for event handler file locations.
 
 ## MVP Restrictions
 
@@ -92,6 +97,14 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) for the type sy
 
 ## Future Routes (Out of Scope for MVP)
 
-- `/admin` or `/config` - guild configuration
-- Voting/approval flows
-- `/message edit` - alternative to `/compose propose` for edits
+- `/admin` or `/config` - guild configuration (uses `TSlashCommand`; no new types)
+- Voting/approval flows - see [Post-MVP Infrastructure](#post-mvp-infrastructure)
+- `/message edit` - alternative to `/compose propose` for edits (message context command "Edit this message")
+
+## Post-MVP Infrastructure
+
+Planned extensions (see [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md#post-mvp-infrastructure)):
+
+- **Voting**: Reaction handlers (`MESSAGE_REACTION_ADD`), approval buttons (`TButton`), state machine (Draft -> Pending -> Approved/Rejected), vote storage
+- **Admin/Config**: Uses `TSlashCommand`; no new interaction types
+- **Collaborative editing**: Edit button on messages, permission middleware, optional message context command "Edit this message"
