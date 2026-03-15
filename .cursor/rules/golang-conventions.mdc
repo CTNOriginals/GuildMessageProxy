@@ -15,7 +15,27 @@ Prefer `var` over `:=` (walrus operator) when defining new variables. The `var` 
 **Exception:** Use `:=` in `for range` loops when defining loop-scoped variables:
 
 ```go
-for i, v := range s {
+for i, val := range items {
     // ...
 }
 ```
+
+## Variable Names
+
+Avoid variable names that are single characters or combinations of single characters. Use descriptive names instead.
+
+**Exception:** Common loop index conventions such as `i` and `j` for loop counters:
+
+```go
+for i, val := range items {
+    for j := 0; j < num; j++ {
+        // ...
+    }
+}
+```
+
+## Package Entry Point
+
+Name the main entry point file of a package the same as the package itself. This makes it easy to locate the primary file when navigating the package.
+
+**Example:** For an `events` package, the main entry point is `events/events.go`.

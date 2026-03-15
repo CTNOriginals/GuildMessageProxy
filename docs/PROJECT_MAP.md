@@ -42,9 +42,12 @@ GuildMessageProxy/
 |-- .env.example                 [EXISTS] Env var template
 |-- .gitignore                   [EXISTS]
 |-- .cursorignore                [EXISTS]
+|-- .cursor/
+|   |-- agents/                  [EXISTS] Subagent definitions (documenter, developer, etc)
+|   |-- rules/                   [EXISTS] Cursor rules
 |-- go.mod                       [EXISTS] Module deps
 |-- go.sum                       [EXISTS]
-|-- Makefile                     [EXISTS]
+|-- Makefile                     [EXISTS] run, build, test, lint, tidy
 |-- README.md                    [EXISTS] User-facing project description
 ```
 
@@ -77,6 +80,16 @@ GuildMessageProxy/
 - **registry.go** (planned) - Command definitions and startup sync: fetch existing, diff against desired, bulk overwrite only when changed. Supports `--guild` (dev) or `--global` (prod).
 - **compose.go** (planned) - Main user-facing command group for compose/create/set/propose/post.
 - **handlers/** - Shared logic used by multiple commands. Keep commands thin.
+
+## Environment Variables (.env.example)
+
+| Variable | Purpose |
+|----------|---------|
+| `TOKEN` | Discord bot token |
+| `CLIENT_ID` | Discord application client ID |
+| `DEV_GUILD_ID` | Development guild for command registration |
+| `DEV_CHANNEL_LOG_ID` | Development channel for logs |
+| `DEV_CHANNEL_ERROR_ID` | Development channel for errors |
 
 ## Out of Scope (Do Not Add Here)
 

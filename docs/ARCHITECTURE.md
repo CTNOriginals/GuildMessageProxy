@@ -5,7 +5,13 @@ How the Go code is organized and how the bot interacts with Discord.
 ## Entry Point
 
 - **File**: `cmd/bot/main.go`
-- **Responsibilities** (target state):
+- **Current state**:
+  - Loads `.env` via godotenv
+  - Token via `-t` flag or `TOKEN` env var
+  - Creates discordgo session with `IntentsGuildMessages`
+  - Opens connection, waits for SIGINT/SIGTERM, then closes
+  - No command sync, slash handlers, `--guild`/`--global` flags, or graceful shutdown logging yet
+- **Target state** (planned):
   - Load configuration (env vars, flags)
   - Initialize Discord session (token, intents)
   - Sync commands on startup (fetch existing, diff, bulk overwrite if changed)

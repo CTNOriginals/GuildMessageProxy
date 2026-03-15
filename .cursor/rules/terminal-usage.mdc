@@ -1,0 +1,10 @@
+---
+description: Use a single terminal per agent instance; reuse it instead of opening new ones.
+alwaysApply: true
+---
+
+# Terminal Usage
+
+When executing terminal commands, use at most one terminal instance per (sub)agent. Reuse the initial terminal instead of opening additional ones.
+
+**Rule:** One terminal per agent instance.

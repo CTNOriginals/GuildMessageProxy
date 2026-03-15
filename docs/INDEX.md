@@ -13,11 +13,13 @@ This folder contains documentation to help AI agents and developers navigate the
 | [TEMPLATES.md](./TEMPLATES.md)       | File templates, patterns for adding new features              |
 | [GLOSSARY.md](./GLOSSARY.md)         | Terms and jargon (proxy message, compose, ephemeral, etc)     |
 | [roadmap/](./roadmap/)               | Planning docs - feature plans, architecture notes, safety     |
+| [.cursor/agents/INDEX.md](../.cursor/agents/INDEX.md) | Subagent index - when to use documenter, developer, reviewer, etc |
 
 
 ## When to Use What
 
 - **"Where does X go?"** -> [PROJECT_MAP.md](./PROJECT_MAP.md)
+- **"Which subagent should handle this?"** -> [.cursor/agents/INDEX.md](../.cursor/agents/INDEX.md)
 - **"How is the code organized?"** -> [ARCHITECTURE.md](./ARCHITECTURE.md)
 - **"What commands exist and how do they flow?"** -> [ROUTE_MAP.md](./ROUTE_MAP.md)
 - **"How do I add a new command/feature?"** -> [TEMPLATES.md](./TEMPLATES.md)
@@ -26,7 +28,7 @@ This folder contains documentation to help AI agents and developers navigate the
 
 ## Project State
 
-As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands or handlers yet. All planned structure is documented for future implementation.
+As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands, command sync, or handlers yet. All planned structure is documented for future implementation.
 
 ## Roadmap Subfolder
 

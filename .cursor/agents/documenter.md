@@ -1,10 +1,6 @@
 ---
 name: documenter
-description: >-
-  Expert in creating and maintaining project documentation. Use when writing,
-  updating, or organizing docs (README, ARCHITECTURE, ROUTE_MAP, GLOSSARY,
-  templates, roadmap). Other subagents can delegate here to stay focused on their
-  expertise. Use proactively when docs need updates after code or structure changes.
+description: Expert in creating and maintaining project documentation.
 model: inherit
 ---
 
