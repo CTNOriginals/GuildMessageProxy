@@ -71,14 +71,80 @@ const (
 
 When creating the button in a response, use the const value as `CustomID`.
 
+## Adding a New Select Menu Type
+
+1. Add a new const to the `TSelectMenu` const block with the `custom_id` value.
+2. Follow the convention: `select_<context>_<action>` (e.g. `select_vote_approve`).
+3. Add the select menu handler/execute logic.
+4. Add an entry to `MSelectMenuDefinitions` (or equivalent map).
+
+### Template: Select Menu Type
+
+```go
+const (
+    VoteApprove  TSelectMenu = "select_vote_approve"
+    VoteReject   TSelectMenu = "select_vote_reject"
+    // Add new: MyContextAction TSelectMenu = "select_my-context_action"
+)
+```
+
+When creating the select menu in a response, use the const value as `CustomID`.
+
+## Adding a New Modal Submit Type
+
+1. Add a new const to the `TModalSubmit` const block with the `custom_id` value.
+2. Follow the convention: `modal_<context>_<action>` (e.g. `modal_compose-create_confirm`).
+3. Add the modal submit handler/execute logic.
+4. Add an entry to `MModalSubmitDefinitions` (or equivalent map).
+
+### Template: Modal Submit Type
+
+```go
+const (
+    ComposeCreateConfirm TModalSubmit = "modal_compose-create_confirm"
+    // Add new: MyContextAction TModalSubmit = "modal_my-context_action"
+)
+```
+
+When creating the modal in a response, use the const value as `CustomID`.
+
+## Adding a Message or User Context Command
+
+1. Add a new const to the `TMessageCommand` or `TUserCommand` const block.
+2. Use naming: `context-action` (e.g. `message-edit`).
+3. Add the command definition (ApplicationCommand with type Message/User) and execute function.
+4. Add an entry to the appropriate map (e.g. `MMessageCommandDefinitions`, `MUserCommandDefinitions`).
+5. Include in registry sync list.
+
+### Template: Message Context Command
+
+```go
+const (
+    MessageEdit TMessageCommand = "message-edit"
+)
+
+// Definition: ApplicationCommand with Type ApplicationCommandMessage
+// Execute: HandleMessageEdit(s *discordgo.Session, i *discordgo.InteractionCreate)
+```
+
 ## Checklist: New Interaction Type
 
-- [ ] Add const to the appropriate type list (TSlashCommand, TButton, etc.)
+- [ ] Add const to the appropriate type list (TSlashCommand, TButton, TSelectMenu, TModalSubmit, TMessageCommand, TUserCommand)
 - [ ] Add definition and execute function
-- [ ] Add entry to the routing map (CommandDefinitions, button map, etc.)
+- [ ] Add entry to the routing map (CommandDefinitions, MButtonDefinitions, MSelectMenuDefinitions, MModalSubmitDefinitions, etc.)
 - [ ] Wire in InteractionCreate if routing logic needs updating
 - [ ] Update ROUTE_MAP.md with the new route
 - [ ] Add tests if applicable
+
+## Checklist: New Definition Struct
+
+When adding a new interaction type that needs its own map (e.g. MSelectMenuDefinitions, MModalSubmitDefinitions):
+
+- [ ] Define the type (e.g. `type TSelectMenu string`)
+- [ ] Define the struct (e.g. `type SSelectMenuDef struct { Execute func(...) }`)
+- [ ] Define the map type (e.g. `type MSelectMenuDefinitions map[TSelectMenu]SSelectMenuDef`)
+- [ ] Add routing branch in InteractionCreate
+- [ ] Update ARCHITECTURE.md and docs/roadmap/infrastructure.md
 
 ## Adding a New Command Group
 

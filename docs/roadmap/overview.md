@@ -30,6 +30,7 @@ This `docs/roadmap` folder is the home for planning and design docs.
 - **MVP flows and behavior**: `mvp-feature-plan.md`
 - **Permissions and safety considerations**: `permissions-and-safety-notes.md`
 - **High-level architecture and Go layout**: `architecture-notes.md`
+- **Full infrastructure design**: `infrastructure.md` (interaction types, naming, guild lifecycle, errors, post-MVP)
 
 As new features are explored, additional focused docs (for example `feature-voting-system.md`) can be added alongside these.
 
