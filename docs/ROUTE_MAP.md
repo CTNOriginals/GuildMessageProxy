@@ -58,8 +58,31 @@ User: clicks Apply
 
 ## Interaction Routing
 
-- Slash commands: synced on startup via `registry.SyncCommands(session, guildID)`. Fetches existing, diffs against desired definitions, bulk overwrites only when changed. Scope: `--guild=<id>` (dev) or `--global` (prod).
-- Button clicks (Post, Cancel, Apply): handled via `session.AddHandler` for `InteractionCreate`. Route by `interaction.Type` and `interaction.MessageComponentData().CustomID`.
+All interactions flow through `internal/events/interaction_create.go`. The handler receives every interaction type (slash commands, buttons, message context commands, etc.) and routes to the correct definition and execution.
+
+### Type System
+
+Custom types identify each interaction:
+
+- `TSlashCommand` - value is the command name (e.g. `"compose-create"`)
+- `TButton` - value is the button `custom_id` (e.g. `"button_compose-create_post"`)
+
+Const lists define all valid values per type. Maps route types to definitions:
+
+```go
+type MCommandDefinitions map[TSlashCommand]SCommandDef
+var CommandDefinitions MCommandDefinitions = MCommandDefinitions{...}
+```
+
+The bot looks up the interaction by its type in the appropriate map and invokes the associated definition/execute logic.
+
+### Flow
+
+1. **Slash commands**: Synced on startup via `registry.SyncCommands(session, guildID)`. Fetches existing, diffs against desired definitions, bulk overwrites only when changed. Scope: `--guild=<id>` (dev) or `--global` (prod). InteractionCreate receives the event, maps `ApplicationCommandData().Name` to `TSlashCommand`, looks up in `CommandDefinitions`, and runs the execute function.
+2. **Button clicks** (Post, Cancel, Apply): InteractionCreate receives the event, reads `MessageComponentData().CustomID`, maps to `TButton`, looks up in the button definitions map, and runs the execute function.
+3. **Other interaction types**: Same pattern - identify by type and ID, look up in the appropriate map, execute.
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) for the type system and [PROJECT_MAP.md](./PROJECT_MAP.md) for event handler file locations.
 
 ## MVP Restrictions
 

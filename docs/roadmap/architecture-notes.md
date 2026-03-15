@@ -57,7 +57,29 @@ This layout is meant to keep user-facing entry points (`commands`) close to thei
 
 ---
 
-### 3. Discord Intents and Events (MVP)
+### 3. Infrastructure (Pre-MVP)
+
+**This infrastructure must be developed before main features.** It covers event handlers, interaction type systems, and error handling that make the frontend user experience work. All of it should be in place and functional before building compose, post, edit, etc.
+
+- **internal/events package**
+  - `interaction_create.go` - Receives all interaction types (slash commands, buttons, message context commands). Routes to the correct definition and execution based on type and ID.
+  - `guild_create.go` - Updates the database when the bot joins a guild.
+  - `guild_delete.go` - Updates the database when the bot leaves a guild.
+  - `error.go` - Handles Discord API error events: log to terminal, inform the user who triggered it, optionally send formatted error embed to a logging channel.
+
+- **Interaction type system**
+  - Custom types: `TSlashCommand`, `TButton` (and equivalents for other interaction types).
+  - Const lists for each type. Convention for IDs: buttons use `button_<context>_<action>`.
+  - Maps route types to definitions: `MCommandDefinitions map[TSlashCommand]SCommandDef`, and similar for buttons.
+
+- **Error handling**
+  - Discord emits an error event on API failures. The events package handles it with logging, user feedback, and optional channel embed.
+
+The infrastructure is designed for extensibility so post-MVP features (additional buttons, context commands, etc.) are supported without major refactors.
+
+---
+
+### 4. Discord Intents and Events (MVP)
 
 - Intents:
   - Currently: `discordgo.IntentsGuildMessages`.
@@ -66,7 +88,7 @@ This layout is meant to keep user-facing entry points (`commands`) close to thei
   - Prioritize slash commands and interaction-based flows for predictability and better UX.
   - Keep message-based commands (if any) minimal and clearly separated.
 
-### 4. Command Registration (Startup Sync)
+### 5. Command Registration (Startup Sync)
 
 Commands sync on every bot startup rather than via a separate registration binary:
 

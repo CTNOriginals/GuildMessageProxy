@@ -25,10 +25,11 @@ This folder contains documentation to help AI agents and developers navigate the
 - **"How do I add a new command/feature?"** -> [TEMPLATES.md](./TEMPLATES.md)
 - **"What does X mean?"** -> [GLOSSARY.md](./GLOSSARY.md)
 - **"What is planned for this project?"** -> [roadmap/](./roadmap/)
+- **"How does event routing and infrastructure work?"** -> [ARCHITECTURE.md](./ARCHITECTURE.md#internal-events), [ROUTE_MAP.md](./ROUTE_MAP.md#interaction-routing), [roadmap/architecture-notes.md](./roadmap/architecture-notes.md#3-infrastructure-pre-mvp)
 
 ## Project State
 
-As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands, command sync, or handlers yet. All planned structure is documented for future implementation.
+As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands, command sync, or handlers yet. **Infrastructure** (event handlers, interaction type system, error handling) must be built first; see [roadmap/architecture-notes.md](./roadmap/architecture-notes.md#3-infrastructure-pre-mvp). All planned structure is documented for future implementation.
 
 ## Roadmap Subfolder
 
