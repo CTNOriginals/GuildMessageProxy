@@ -34,6 +34,30 @@ for i, val := range items {
 }
 ```
 
+## Type Declaration Prefixes
+
+Prefix type declarations with a letter indicating the kind of type:
+
+- **Type alias:** `T` (e.g. `TUserID`, `TStatus`)
+- **Struct:** `S` (e.g. `SUser`, `SConfig`)
+- **Map:** `M` (e.g. `MUserByID`, `MConfig`)
+- **Interface:** `I` (e.g. `IHandler`, `IRepository`)
+
+```go
+type SUser struct {
+    ID   TUserID
+    Name string
+}
+
+type MUserByID map[TUserID]SUser
+
+type TUserID int64
+
+type IHandler interface {
+    Handle(ctx context.Context) error
+}
+```
+
 ## Package Entry Point
 
 Name the main entry point file of a package the same as the package itself. This makes it easy to locate the primary file when navigating the package.
