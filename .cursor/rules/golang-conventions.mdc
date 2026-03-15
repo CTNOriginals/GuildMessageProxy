@@ -33,3 +33,9 @@ for i, val := range items {
     }
 }
 ```
+
+## Package Entry Point
+
+Name the main entry point file of a package the same as the package itself. This makes it easy to locate the primary file when navigating the package.
+
+**Example:** For an `events` package, the main entry point is `events/events.go`.
