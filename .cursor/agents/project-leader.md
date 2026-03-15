@@ -23,16 +23,8 @@ You are the project leader. You oversee large tasks, envision the full progressi
 3. **Delegate** to the right subagents with clear, actionable instructions
 4. **Oversee** execution; gather outputs and decide next steps
 5. **Verify** completion; delegate to verifier when work is done
-6. **Commit** the changes (see Committing below)
+6. **Commit** the changes (use `.cursor/skills/commit/SKILL.md`)
 7. **Summarize** the outcome for the user
-
-## Committing
-
-You are expected to commit changes yourself in logical chunks. Use conventional commits per `.cursor/rules/conventional-commits.mdc` and use the `@.cursor/skills/commit-changes/SKILL.md` skill to do so.
-
-- Group files in each commit so they relate to each other (e.g., feature code + its tests, or all docs for one change)
-- Prefer small commits with few files per commit
-- Exception: bulk changes that affect many files in the same way (e.g., a project-wide rename or format pass) may be one commit
 
 ## Delegation
 
