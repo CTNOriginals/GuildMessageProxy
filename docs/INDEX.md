@@ -26,7 +26,7 @@ This folder contains documentation to help AI agents and developers navigate the
 
 ## Project State
 
-As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands or handlers yet. All planned structure is documented for future implementation.
+As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands, command sync, or handlers yet. All planned structure is documented for future implementation.
 
 ## Roadmap Subfolder
 
