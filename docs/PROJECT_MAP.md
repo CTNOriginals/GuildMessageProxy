@@ -11,6 +11,12 @@ GuildMessageProxy/
 |   |   |-- main.go              [EXISTS] Entry point, config load, session init
 |   |
 |-- internal/                     [PLANNED - not yet created]
+|   |-- events/
+|   |   |-- interaction_create.go [PLANNED] Routes all interactions (slash, buttons, context) to definitions
+|   |   |-- guild_create.go       [PLANNED] Update DB when bot joins a guild
+|   |   |-- guild_delete.go       [PLANNED] Update DB when bot leaves a guild
+|   |   |-- error.go              [PLANNED] Handle Discord API errors (log, user feedback, optional embed)
+|   |
 |   |-- commands/
 |   |   |-- compose.go            [PLANNED] /compose group + subcommands
 |   |   |-- registry.go          [PLANNED] Command definitions + startup sync (fetch, diff, bulk overwrite)
@@ -56,6 +62,7 @@ GuildMessageProxy/
 | What | Where |
 |------|-------|
 | Entry point, config load, session init | `cmd/bot/main.go` |
+| Event handlers (InteractionCreate, GuildCreate, GuildDelete, Error) | `internal/events/` |
 | Slash command definitions + handlers | `internal/commands/<group>.go` |
 | Command definitions + startup sync | `internal/commands/registry.go` |
 | Reusable logic (preview, post, permissions) | `internal/handlers/` |

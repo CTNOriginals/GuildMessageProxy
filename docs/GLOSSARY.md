@@ -16,5 +16,11 @@ Definitions for terms used across the project and docs.
 | **MVP**             | Minimum Viable Product. First shippable version: compose, preview, post, basic edit.                                                                                                                             |
 | **Intent**          | Discord gateway intent. `IntentsGuildMessages` allows receiving messages in guilds.                                                                                                                              |
 | **Slash command**   | Discord application command (e.g. `/compose create`). Preferred over message-based commands.                                                                                                                     |
+| **Event handler**   | Code in `internal/events/` that receives Discord gateway events (InteractionCreate, GuildCreate, GuildDelete, Error) and routes or processes them.                                                               |
+| **TSlashCommand**   | Custom type `string` whose value is the slash command name (e.g. `"compose-create"`). Used to route slash interactions to definitions via maps.                                                                   |
+| **TButton**         | Custom type `string` whose value is the button `custom_id` (e.g. `"button_compose-create_post"`). Used to route button interactions to definitions via maps.                                                     |
+| **MCommandDefinitions** | Map type `map[TSlashCommand]SCommandDef`. Routes slash command types to their definition and execute logic.                                                                                              |
+| **SCommandDef**     | Struct holding a slash command definition (ApplicationCommand) and its execute function. Used as the value type in MCommandDefinitions.                                                                          |
+| **Error event handling** | Handling of Discord API error events. Flow: (a) log to terminal, (b) inform the user who triggered it, (c) optionally send formatted error embed to a logging channel. See `internal/events/error.go`. |
 
 
