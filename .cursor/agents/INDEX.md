@@ -3,6 +3,7 @@
 | Agent | Use when |
 |-------|----------|
 | project-leader | Large, multi-step tasks requiring planning, delegation, and end-to-end oversight. Invoke only from user; subagents must not delegate to this agent. |
+| prompt-optimizer | Always use when composing a prompt for any other subagent. Also use for correcting, cleaning up, or improving any prompt's clarity and effectiveness |
 | documenter | Creating or updating project docs (README, ARCHITECTURE, ROUTE_MAP, GLOSSARY, TEMPLATES, roadmap) |
 | developer | Building features, adding packages, extending the codebase |
 | reviewer | Reviewing PRs, changes, or when the user asks for a code review |
