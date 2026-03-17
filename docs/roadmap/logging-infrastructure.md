@@ -123,7 +123,7 @@ Define severity hierarchy with bot-specific usage patterns.
 Include these fields consistently across log entries:
 
 **Temporal**
-- `timestamp` - ISO8601 format with timezone (e.g., `2026-01-15T09:23:47Z`)
+- `timestamp` - Compact format (e.g., `26-01-15 09:23:47`)
 
 **Discord Context**
 - `guild_id` - Server where interaction occurred
@@ -142,15 +142,21 @@ Include these fields consistently across log entries:
 
 ### Field Ordering
 
-Recommended field order in log messages:
+Log messages use a multi-line format for readability:
 
 ```
-[LEVEL] [timestamp] message | field1=value1 field2=value2 ...
+[LEVEL] [timestamp] message
+    field1: value1
+    field2: value2
 ```
 
 Example:
 ```
-[INFO] [2026-01-15T09:23:47Z] Command executed | command=compose-create user_id=123456 guild_id=789012 duration_ms=45
+[INFO] [26-03-17 14:30:22] Command executed
+    command: compose-create
+    user_id: 123456
+    guild_id: 789012
+    duration_ms: 45
 ```
 
 ---
@@ -199,7 +205,13 @@ Aligns with [infrastructure.md](./infrastructure.md) section 5 error categorizat
 
 **Example:**
 ```
-[WARN] [2026-01-15T09:23:47Z] Transient error, will retry | category=transient retry_count=2 max_retries=3 backoff_ms=1000 discord_error_code=429 endpoint=/channels/123/messages
+[WARN] [26-01-15 09:23:47] Transient error, will retry
+    category: transient
+    retry_count: 2
+    max_retries: 3
+    backoff_ms: 1000
+    discord_error_code: 429
+    endpoint: /channels/123/messages
 ```
 
 ### Permanent Auth Errors
@@ -214,7 +226,9 @@ Aligns with [infrastructure.md](./infrastructure.md) section 5 error categorizat
 
 **Example:**
 ```
-[FATAL] [2026-01-15T09:23:47Z] Authentication failed, shutting down | discord_error_code=40001 context=session.Open
+[FATAL] [26-01-15 09:23:47] Authentication failed, shutting down
+    discord_error_code: 40001
+    context: session.Open
 ```
 
 **Action:** Log and exit. These indicate configuration issues that require operator intervention.
@@ -233,7 +247,12 @@ Aligns with [infrastructure.md](./infrastructure.md) section 5 error categorizat
 
 **Example:**
 ```
-[ERROR] [2026-01-15T09:23:47Z] Resource not found | category=permanent_resource discord_error_code=10008 resource_type=message resource_id=456789 action_taken=cleared_user_message
+[ERROR] [26-01-15 09:23:47] Resource not found
+    category: permanent_resource
+    discord_error_code: 10008
+    resource_type: message
+    resource_id: 456789
+    action_taken: cleared_user_message
 ```
 
 ### Validation Errors
@@ -250,7 +269,12 @@ Aligns with [infrastructure.md](./infrastructure.md) section 5 error categorizat
 
 **Example:**
 ```
-[WARN] [2026-01-15T09:23:47Z] Validation failed | category=validation discord_error_code=50035 field=content user_id=123456 validation_message=content exceeds 2000 characters
+[WARN] [26-01-15 09:23:47] Validation failed
+    category: validation
+    discord_error_code: 50035
+    field: content
+    user_id: 123456
+    validation_message: content exceeds 2000 characters
 ```
 
 ---
@@ -314,13 +338,13 @@ func LoggedRESTCall(operation string, call func() error) error {
 
 ### Timestamp Format
 
-Use ISO8601 with UTC timezone and millisecond precision:
+Use compact YY-MM-DD HH:MM:SS format in UTC:
 
 ```
-2006-01-02T15:04:05.000Z
+06-01-02 15:04:05
 ```
 
-Example: `2026-01-15T09:23:47.123Z`
+Example: `26-01-15 09:23:47`
 
 ### Level Display
 
@@ -338,17 +362,42 @@ Bracketed uppercase, 5 characters wide (left-aligned):
 
 **Standard entry:**
 ```
-[LEVEL] [timestamp] message | field1=value1 field2=value2
+[LEVEL] [timestamp] message
+    field1: value1
+    field2: value2
 ```
 
 **Multi-line messages:**
-For errors with stack traces or large payloads, use newline continuation with indent:
+All log entries use multi-line format with fields on separate lines indented by 4 spaces:
 
 ```
-[ERROR] [2026-01-15T09:23:47Z] REST API failure |
-    endpoint=/channels/123/messages
-    status=500
-    response={"message": "Internal Server Error"}
+[ERROR] [26-01-15 09:23:47] REST API failure
+    endpoint: /channels/123/messages
+    status: 500
+    response: {"message": "Internal Server Error"}
+```
+
+### Field Helpers
+
+The logging package provides helper functions for creating typed fields:
+
+| Helper | Purpose | Example |
+|--------|---------|---------|
+| `logging.String(k, v)` | String value | `logging.String("command", "create")` |
+| `logging.Int(k, v)` | Integer value | `logging.Int("count", 42)` |
+| `logging.Int64(k, v)` | Int64 value | `logging.Int64("guild_id", id)` |
+| `logging.Duration(k, v)` | Duration in ms | `logging.Duration("elapsed", duration)` |
+| `logging.Err(k, err)` | Error value | `logging.Err("error", err)` |
+
+**Note:** Use `logging.Err()` (not `logging.Error()`) for error fields. The `logging.Error()` function logs at Error level; `logging.Err()` creates a field containing an error.
+
+Example usage:
+```go
+logging.Error("REST API call failed",
+    logging.String("endpoint", "/channels/123/messages"),
+    logging.Int("status", 500),
+    logging.Err("error", err),
+)
 ```
 
 ### Field Ordering Convention

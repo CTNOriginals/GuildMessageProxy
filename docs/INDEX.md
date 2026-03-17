@@ -39,6 +39,7 @@ As of the last doc update, the **infrastructure is COMPLETE**. The bot has:
 - Storage interface with in-memory implementation
 - Placeholder `/compose` command registered
 - Graceful shutdown with runtime logging
+- Structured logging infrastructure (`internal/logging/` package with levels and contextual logging)
 
 The **only remaining work for MVP** is the `internal/handlers/` package containing the compose, preview, and post logic. See [roadmap/mvp-feature-plan.md](./roadmap/mvp-feature-plan.md) for handler specifications.
 

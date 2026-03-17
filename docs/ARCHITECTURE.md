@@ -12,7 +12,7 @@ How the Go code is organized and how the bot interacts with Discord.
   - Creates discordgo session with `IntentsGuildMessages | IntentsGuilds`
   - Event handlers wired: Ready, InteractionCreate, GuildCreate, GuildDelete
   - Command sync on startup with diff detection
-  - Graceful shutdown with runtime logging
+  - Graceful shutdown with structured runtime logging via `internal/logging`
 - **Target state** (planned):
   - Load configuration (env vars, flags)
   - Initialize Discord session (token, intents)
@@ -81,6 +81,20 @@ Persistence for:
 - Start with in-memory implementation.
 - Design interfaces so storage can be swapped for a database later.
 
+### internal/logging
+
+Structured logging package providing consistent, configurable log output across the application.
+
+| Feature | Description |
+|---------|-------------|
+| Log levels | Fatal, Error, Warn, Info, Debug (configurable via `LOG_LEVEL` env var) |
+| Structured fields | Key-value pairs for consistent context (guild_id, channel_id, user_id, error, etc.) |
+| Output channels | stdout for Info/Debug, stderr for Error/Warn/Fatal |
+| Format | `[LEVEL] [YY-MM-DD HH:MM:SS] message` with indented fields |
+| Context helpers | `WithContext()` for standard Discord context fields |
+
+Used by all event handlers and `main.go` to replace standard `log` package usage. See `internal/logging/logging.go` for implementation and `internal/logging/levels.go` for level definitions.
+
 ## Command Registration (Startup Sync)
 
 Commands are synced on every bot startup:
@@ -141,9 +155,14 @@ Discord does **not** send a dedicated gateway "Error" event for REST failures. E
 
 The `internal/events` package handles errors by:
 
-1. **Logging** - Write the error to the terminal
+1. **Logging** - Write errors via `internal/logging` package with structured context (guild_id, channel_id, user_id, error details)
 2. **User feedback** - Inform the user who triggered it that something went wrong
 3. **Logging channel** (optional) - Send a formatted error embed to a configured channel (polish feature)
+
+**Structured logging approach**:
+- Errors are logged with appropriate severity level (Error for failures, Warn for recoverable issues)
+- Context fields attach Discord IDs and error details for traceability
+- See `internal/events/error.go` for error categorization and logging integration
 
 **Error categorization**:
 
