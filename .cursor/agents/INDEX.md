@@ -3,7 +3,6 @@
 | Agent | Use when |
 |-------|----------|
 | project-leader | Large, multi-step tasks requiring planning, delegation, and end-to-end oversight. Invoke only from user; subagents must not delegate to this agent. |
-| prompt-optimizer | Always use when composing a prompt for any other subagent. Also use for correcting, cleaning up, or improving any prompt's clarity and effectiveness |
 | documenter | Creating or updating project docs (README, ARCHITECTURE, ROUTE_MAP, GLOSSARY, TEMPLATES, roadmap) |
 | developer | Building features, adding packages, extending the codebase |
 | reviewer | Reviewing PRs, changes, or when the user asks for a code review |
@@ -17,6 +16,7 @@ All project subagents should apply these instructions:
 
 - Follow the rules in `.cursor/rules/` where applicable.
 - Use `docs/INDEX.md` to navigate and understand how things are structured.
+- **Apply skills from `.cursor/skills/` when working on relevant tasks.** Skills contain guidance you follow directly - no need to invoke a subagent. For example, apply the `prompt-optimizer` skill when writing prompts.
 - **Do not invoke the project-leader subagent.** The project-leader is started only by the user. Other subagents may not delegate to it.
 
 ## Documentation Delegation
