@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -13,6 +13,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/commands"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/events"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
 
@@ -25,7 +26,7 @@ var (
 
 func init() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatalf("Unable to load .env:\n\t %v", err)
+		logging.Fatal("unable to load .env file", logging.Err("error", err))
 	}
 	flag.StringVar(&Token, "t", os.Getenv("TOKEN"), "Bot token")
 	flag.StringVar(&GuildID, "guild", os.Getenv("DEV_GUILD_ID"), "Guild ID for command registration (dev mode)")
@@ -36,14 +37,22 @@ func init() {
 
 func main() {
 	var startTime = time.Now()
+
+	// Log bot startup with version information
+	logging.Info("bot starting",
+		logging.String("version", "dev"),
+		logging.String("go_version", runtime.Version()),
+	)
+
 	fmt.Printf("\n\n---- START %s ----\n", startTime.Format(time.TimeOnly))
 
 	// Initialize storage
 	var store storage.Store = storage.NewMemoryStore()
+	logging.Info("storage initialized", logging.String("type", "memory"))
 
 	var bot, err = discordgo.New("Bot " + Token)
 	if err != nil {
-		log.Fatalf("Unable to create discord bot instance:\n\t %v", err)
+		logging.Fatal("unable to create discord bot instance", logging.Err("error", err))
 	}
 
 	// Update intents: guild messages and guilds (for guild lifecycle events)
@@ -57,8 +66,10 @@ func main() {
 
 	err = bot.Open()
 	if err != nil {
-		log.Fatalf("Unable to open discord bot connection:\n\t %v", err)
+		logging.Fatal("unable to open discord connection", logging.Err("error", err))
 	}
+
+	logging.Info("discord session opened")
 
 	// Sync commands if not disabled
 	if !NoSync {
@@ -67,25 +78,39 @@ func main() {
 			targetGuild = GuildID
 		}
 
+		var count = len(commands.CommandDefinitions)
 		err = commands.SyncCommands(bot, targetGuild)
 		if err != nil {
-			log.Printf("Warning: Command sync failed: %v", err)
+			logging.Warn("command sync failed", logging.Err("error", err))
+		} else {
+			var scope = "guild"
+			if Global {
+				scope = "global"
+			}
+			logging.Info("commands registered",
+				logging.Int("count", count),
+				logging.String("scope", scope),
+			)
 		}
 	} else {
-		log.Println("Command sync skipped (--no-sync flag)")
+		logging.Info("command sync skipped", logging.String("reason", "--no-sync flag"))
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
+	var sig = <-sc
 
 	// Graceful shutdown
-	log.Println("Shutting down gracefully...")
+	logging.Info("shutdown initiated", logging.String("signal", sig.String()))
+
 	var shutdownTime = time.Now()
 	fmt.Printf("---- END %s (Runtime: %s) ----\n\n", shutdownTime.Format(time.TimeOnly), shutdownTime.Sub(startTime))
 
 	// Cleanly close down the Discord session.
 	bot.Close()
+
+	var duration = time.Since(shutdownTime)
+	logging.Info("shutdown complete", logging.Duration("duration", duration))
 }
