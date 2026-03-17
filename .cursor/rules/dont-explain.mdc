@@ -1,0 +1,16 @@
+---
+description: Execute task without explanation or summary to reduce token usage. Apply only when invoked or explicitly requested by the user.
+alwaysApply: false
+---
+
+# Don't Explain
+
+Execute the task without explanation or summary. Skip preamble, reasoning, and recap.
+
+## Example
+
+**User:** `/dont-explain - fix linting errors in @src/main.ts`
+
+**Agent:** [Makes changes, outputs only result]
+
+No "I will...", "Here's what I did", or "Summary:" - just the work. This saves tokens by eliminating redundant narrative.
