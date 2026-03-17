@@ -30,7 +30,16 @@ This folder contains documentation to help AI agents and developers navigate the
 
 ## Project State
 
-As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands, command sync, or handlers yet. **Infrastructure** (event handlers, interaction type system, error handling) must be built first; see [roadmap/infrastructure.md](./roadmap/infrastructure.md). All planned structure is documented for future implementation.
+As of the last doc update, the **infrastructure is COMPLETE**. The bot has:
+
+- Full event handlers (Ready, GuildCreate, GuildDelete, InteractionCreate, Error)
+- Command sync system with diff detection (`--guild`, `--global`, `--no-sync` flags)
+- Interaction type system for command/data routing
+- Storage interface with in-memory implementation
+- Placeholder `/compose` command registered
+- Graceful shutdown with runtime logging
+
+The **only remaining work for MVP** is the `internal/handlers/` package containing the compose, preview, and post logic. See [roadmap/mvp-feature-plan.md](./roadmap/mvp-feature-plan.md) for handler specifications.
 
 ## Roadmap Subfolder
 
