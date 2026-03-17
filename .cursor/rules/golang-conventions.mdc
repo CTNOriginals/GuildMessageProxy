@@ -10,9 +10,9 @@ Project-specific Go conventions. Add new sections as conventions are adopted.
 
 ## Variable Declarations
 
-Prefer `var` over `:=` (walrus operator) when defining new variables. The `var` keyword is easier to spot and keeps the code more readable.
+Prefer `var` over `:=` for clarity and readability.
 
-**Exception:** Use `:=` in `for range` loops when defining loop-scoped variables:
+**Exception:** Use `:=` in `for range` loops for loop-scoped variables:
 
 ```go
 for i, val := range items {
@@ -22,9 +22,9 @@ for i, val := range items {
 
 ## Variable Names
 
-Avoid variable names that are single characters or combinations of single characters. Use descriptive names instead.
+Use descriptive names; avoid single characters or combinations thereof.
 
-**Exception:** Common loop index conventions such as `i` and `j` for loop counters:
+**Exception:** Common loop indices like `i` and `j` for loop counters:
 
 ```go
 for i, val := range items {
@@ -60,6 +60,6 @@ type IHandler interface {
 
 ## Package Entry Point
 
-Name the main entry point file of a package the same as the package itself. This makes it easy to locate the primary file when navigating the package.
+Name the main entry point file the same as the package for easy location.
 
-**Example:** For an `events` package, the main entry point is `events/events.go`.
+**Example:** For an `events` package, the entry point is `events/events.go`.

@@ -1,16 +1,37 @@
 package events
 
 import (
-	"log"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/commands"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 )
+
+// getInteractionContext returns standard Discord context fields for an interaction
+func getInteractionContext(i *discordgo.InteractionCreate) []logging.Field {
+	var fields = []logging.Field{
+		logging.String("interaction_id", i.ID),
+		logging.String("type", i.Type.String()),
+	}
+	if i.GuildID != "" {
+		fields = append(fields, logging.String("guild_id", i.GuildID))
+	}
+	if i.ChannelID != "" {
+		fields = append(fields, logging.String("channel_id", i.ChannelID))
+	}
+	if i.Member != nil && i.Member.User != nil {
+		fields = append(fields, logging.String("user_id", i.Member.User.ID))
+	}
+	return fields
+}
 
 // HandleInteractionCreate routes all interaction types to their appropriate handlers.
 // Supports: slash commands, message components (buttons, select menus), and modal submits.
 func HandleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logging.Debug("interaction received", getInteractionContext(i)...)
+
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
 		handleSlashCommand(s, i)
@@ -19,7 +40,10 @@ func HandleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreat
 	case discordgo.InteractionModalSubmit:
 		handleModalSubmit(s, i)
 	default:
-		log.Printf("Unknown interaction type: %d", i.Type)
+		logging.Warn("unknown interaction type",
+			logging.String("interaction_id", i.ID),
+			logging.Int("type", int(i.Type)),
+		)
 	}
 }
 
@@ -28,10 +52,27 @@ func handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var data discordgo.ApplicationCommandInteractionData = i.ApplicationCommandData()
 	var cmdType commands.TSlashCommand = commands.TSlashCommand(data.Name)
 
+	var startTime = time.Now()
+
 	if def, ok := commands.CommandDefinitions[cmdType]; ok {
+		logging.Info("command execution started",
+			logging.String("command", data.Name),
+			logging.String("user_id", i.Member.User.ID),
+			logging.String("guild_id", i.GuildID),
+		)
+
 		def.Execute(s, i)
+
+		logging.Info("command execution completed",
+			logging.String("command", data.Name),
+			logging.Duration("duration", time.Since(startTime)),
+		)
 	} else {
-		log.Printf("Unknown slash command: %s", data.Name)
+		logging.Warn("unknown slash command",
+			logging.String("command", data.Name),
+			logging.String("user_id", i.Member.User.ID),
+			logging.String("guild_id", i.GuildID),
+		)
 		RespondToUser(s, i, "Unknown command: "+data.Name)
 	}
 }
@@ -48,7 +89,11 @@ func handleMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate
 	case strings.HasPrefix(customID, "select_"):
 		handleSelectMenu(s, i, customID)
 	default:
-		log.Printf("Unknown message component CustomID: %s", customID)
+		logging.Warn("unknown message component",
+			logging.String("custom_id", customID),
+			logging.String("user_id", i.Member.User.ID),
+			logging.String("guild_id", i.GuildID),
+		)
 		RespondToUser(s, i, "Unknown component: "+customID)
 	}
 }
@@ -59,7 +104,11 @@ func handleButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID
 
 	// Placeholder: No button definitions registered yet in MVP
 	// This will be populated as features are added
-	log.Printf("Button interaction received: %s (no handler registered)", customID)
+	logging.Info("button clicked",
+		logging.String("button_id", customID),
+		logging.String("user_id", i.Member.User.ID),
+		logging.String("guild_id", i.GuildID),
+	)
 	RespondToUser(s, i, "Button action not yet implemented: "+customID)
 }
 
@@ -69,7 +118,11 @@ func handleSelectMenu(s *discordgo.Session, i *discordgo.InteractionCreate, cust
 
 	// Placeholder: No select menu definitions registered yet in MVP
 	// This will be populated as features are added
-	log.Printf("Select menu interaction received: %s (no handler registered)", customID)
+	logging.Info("select menu selected",
+		logging.String("select_id", customID),
+		logging.String("user_id", i.Member.User.ID),
+		logging.String("guild_id", i.GuildID),
+	)
 	RespondToUser(s, i, "Select menu action not yet implemented: "+customID)
 }
 
@@ -81,7 +134,11 @@ func handleModalSubmit(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Placeholder: No modal definitions registered yet in MVP
 	// This will be populated as features are added
-	log.Printf("Modal submit received: %s (no handler registered)", customID)
+	logging.Info("modal submitted",
+		logging.String("modal_id", customID),
+		logging.String("user_id", i.Member.User.ID),
+		logging.String("guild_id", i.GuildID),
+	)
 	_ = modalType // Will be used when modal definitions are registered
 
 	RespondToUser(s, i, "Modal submit not yet implemented: "+customID)

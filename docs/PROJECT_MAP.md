@@ -10,18 +10,18 @@ GuildMessageProxy/
 |   |-- bot/
 |   |   |-- main.go              [EXISTS] Entry point, config load, session init
 |   |
-|-- internal/                     [PLANNED - not yet created]
+|-- internal/                     [EXISTS]
 |   |-- events/
-|   |   |-- interaction_create.go [PLANNED] Routes all interactions (slash, buttons, select, modal, context) to definitions
-|   |   |-- guild_create.go       [PLANNED] Store guild metadata and config when bot joins
-|   |   |-- guild_delete.go       [PLANNED] Remove/soft-delete guild data when bot leaves
-|   |   |-- ready.go              [PLANNED] Optional: bot startup confirmation, log ready state
-|   |   |-- error.go              [PLANNED] Handle REST/gateway errors (log, user feedback, optional embed)
+|   |   |-- interaction_create.go [EXISTS] Routes all interactions (slash, buttons, select, modal, context) to definitions
+|   |   |-- guild_create.go       [EXISTS] Store guild metadata and config when bot joins
+|   |   |-- guild_delete.go       [EXISTS] Remove/soft-delete guild data when bot leaves
+|   |   |-- ready.go              [EXISTS] Optional: bot startup confirmation, log ready state
+|   |   |-- error.go              [EXISTS] Handle REST/gateway errors (log, user feedback, optional embed)
 |   |
 |   |-- commands/
-|   |   |-- types.go              [PLANNED] TSlashCommand, TButton, TSelectMenu, TModalSubmit, TMessageCommand, TUserCommand + const blocks
+|   |   |-- types.go              [EXISTS] TSlashCommand, TButton, TSelectMenu, TModalSubmit, TMessageCommand, TUserCommand + const blocks
 |   |   |-- compose.go            [PLANNED] /compose group + subcommands
-|   |   |-- registry.go           [PLANNED] Command definitions + startup sync (fetch, diff, bulk overwrite)
+|   |   |-- registry.go           [EXISTS] Command definitions + startup sync (fetch, diff, bulk overwrite)
 |   |   |-- (admin.go, config.go) [FUTURE] Other command groups
 |   |
 |   |-- handlers/
@@ -31,8 +31,8 @@ GuildMessageProxy/
 |   |   |-- validation.go        [PLANNED] Shared input validation
 |   |
 |   |-- storage/
-|   |   |-- memory.go            [PLANNED] In-memory proxy metadata
-|   |   |-- interface.go         [PLANNED] Storage interface for swap later
+|   |   |-- memory.go            [EXISTS] In-memory proxy metadata
+|   |   |-- interface.go         [EXISTS] Storage interface for swap later
 |
 |-- docs/
 |   |-- INDEX.md                 [EXISTS] This index
@@ -78,17 +78,17 @@ GuildMessageProxy/
 
 | Area | Status |
 |------|--------|
-| `cmd/bot/main.go` | Exists - connects to Discord, no commands yet |
-| `internal/` | Not created - all packages planned |
-| Slash commands | Not registered |
-| Storage | Not implemented |
-| Handlers | Not implemented |
+| `cmd/bot/main.go` | Exists - full features (flags, sync, graceful shutdown) |
+| `internal/` | Exists - all packages implemented |
+| Slash commands | Registered (placeholder compose command) |
+| Storage | Implemented (in-memory) |
+| Handlers | Not yet created |
 | `docs/` | Exists - agent docs and roadmap |
 
 ## Key Files to Know
 
 - **main.go** - Thin entry point. Load config, init session, wire handlers, graceful shutdown.
-- **registry.go** (planned) - Command definitions and startup sync: fetch existing, diff against desired, bulk overwrite only when changed. Supports `--guild` (dev) or `--global` (prod).
+- **registry.go** - Command definitions and startup sync: fetch existing, diff against desired, bulk overwrite only when changed. Supports `--guild` (dev) or `--global` (prod).
 - **compose.go** (planned) - Main user-facing command group for compose/create/set/propose/post.
 - **handlers/** - Shared logic used by multiple commands. Keep commands thin.
 

@@ -8,9 +8,11 @@ How the Go code is organized and how the bot interacts with Discord.
 - **Current state**:
   - Loads `.env` via godotenv
   - Token via `-t` flag or `TOKEN` env var
-  - Creates discordgo session with `IntentsGuildMessages`
-  - Opens connection, waits for SIGINT/SIGTERM, then closes
-  - No command sync, slash handlers, `--guild`/`--global` flags, or graceful shutdown logging yet
+  - CLI flags implemented: `--guild=<id>` for dev, `--global` for prod, `--no-sync` to skip sync
+  - Creates discordgo session with `IntentsGuildMessages | IntentsGuilds`
+  - Event handlers wired: Ready, InteractionCreate, GuildCreate, GuildDelete
+  - Command sync on startup with diff detection
+  - Graceful shutdown with structured runtime logging via `internal/logging`
 - **Target state** (planned):
   - Load configuration (env vars, flags)
   - Initialize Discord session (token, intents)
@@ -20,6 +22,11 @@ How the Go code is organized and how the bot interacts with Discord.
 
 `main` should stay thin. Delegate real work to `internal/` packages.
 
+**Implementation cross-references**:
+- Command sync logic: `internal/commands/registry.go`
+- Event handlers: `internal/events/*.go`
+- Storage: `internal/storage/*.go`
+
 ## Package Layout
 
 ### internal/commands
@@ -28,7 +35,7 @@ Command-first layout. Each top-level category and its subcommands live together.
 
 | File | Contents |
 |------|----------|
-| `compose.go` | `/compose` group + subcommands (create, set, propose, post). Handler/execute functions. Command-specific validation. |
+| `compose.go` | [PLANNED] `/compose` group + subcommands (create, set, propose, post). Handler/execute functions. Command-specific validation. Placeholder command definition exists in `registry.go`. |
 | `registry.go` | Command definitions and sync logic. On startup: fetch existing commands, compare with desired definitions, bulk overwrite only when different. Called from main. |
 | `admin.go`, `config.go` | Future command groups. Same pattern as compose. |
 
@@ -73,6 +80,20 @@ Persistence for:
 
 - Start with in-memory implementation.
 - Design interfaces so storage can be swapped for a database later.
+
+### internal/logging
+
+Structured logging package providing consistent, configurable log output across the application.
+
+| Feature | Description |
+|---------|-------------|
+| Log levels | Fatal, Error, Warn, Info, Debug (configurable via `LOG_LEVEL` env var) |
+| Structured fields | Key-value pairs for consistent context (guild_id, channel_id, user_id, error, etc.) |
+| Output channels | stdout for Info/Debug, stderr for Error/Warn/Fatal |
+| Format | `[LEVEL] [YY-MM-DD HH:MM:SS] message` with indented fields |
+| Context helpers | `WithContext()` for standard Discord context fields |
+
+Used by all event handlers and `main.go` to replace standard `log` package usage. See `internal/logging/logging.go` for implementation and `internal/logging/levels.go` for level definitions.
 
 ## Command Registration (Startup Sync)
 
@@ -134,9 +155,14 @@ Discord does **not** send a dedicated gateway "Error" event for REST failures. E
 
 The `internal/events` package handles errors by:
 
-1. **Logging** - Write the error to the terminal
+1. **Logging** - Write errors via `internal/logging` package with structured context (guild_id, channel_id, user_id, error details)
 2. **User feedback** - Inform the user who triggered it that something went wrong
 3. **Logging channel** (optional) - Send a formatted error embed to a configured channel (polish feature)
+
+**Structured logging approach**:
+- Errors are logged with appropriate severity level (Error for failures, Warn for recoverable issues)
+- Context fields attach Discord IDs and error details for traceability
+- See `internal/events/error.go` for error categorization and logging integration
 
 **Error categorization**:
 
@@ -164,8 +190,8 @@ See [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md#error-handling)
 
 ## Intents and Events (MVP)
 
-- **Intents**: `discordgo.IntentsGuildMessages` (current). May need more for slash commands and interactions.
-- **Events**: Wired in `internal/events`. Prioritize slash commands and interaction-based flows. Keep message-based commands minimal. See `internal/events` for InteractionCreate, GuildCreate, GuildDelete, and Error handlers.
+- **Intents**: `discordgo.IntentsGuildMessages | discordgo.IntentsGuilds`
+- **Events**: Wired in `internal/events`. Prioritize slash commands and interaction-based flows. Keep message-based commands minimal. See `internal/events` for InteractionCreate, GuildCreate, GuildDelete, and Ready handlers.
 
 ## Dependencies
 

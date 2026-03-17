@@ -26,11 +26,22 @@ This folder contains documentation to help AI agents and developers navigate the
 - **"What does X mean?"** -> [GLOSSARY.md](./GLOSSARY.md)
 - **"What is planned for this project?"** -> [roadmap/](./roadmap/)
 - **"What is the full infrastructure design?"** -> [roadmap/infrastructure.md](./roadmap/infrastructure.md)
+- **"What is the logging strategy?"** -> [roadmap/logging-infrastructure.md](./roadmap/logging-infrastructure.md)
 - **"How does event routing and infrastructure work?"** -> [ARCHITECTURE.md](./ARCHITECTURE.md#internal-events), [ROUTE_MAP.md](./ROUTE_MAP.md#interaction-routing), [roadmap/infrastructure.md](./roadmap/infrastructure.md)
 
 ## Project State
 
-As of the last doc update, the project is **pre-MVP**. The bot starts and connects to Discord but has no slash commands, command sync, or handlers yet. **Infrastructure** (event handlers, interaction type system, error handling) must be built first; see [roadmap/infrastructure.md](./roadmap/infrastructure.md). All planned structure is documented for future implementation.
+As of the last doc update, the **infrastructure is COMPLETE**. The bot has:
+
+- Full event handlers (Ready, GuildCreate, GuildDelete, InteractionCreate, Error)
+- Command sync system with diff detection (`--guild`, `--global`, `--no-sync` flags)
+- Interaction type system for command/data routing
+- Storage interface with in-memory implementation
+- Placeholder `/compose` command registered
+- Graceful shutdown with runtime logging
+- Structured logging infrastructure (`internal/logging/` package with levels and contextual logging)
+
+The **only remaining work for MVP** is the `internal/handlers/` package containing the compose, preview, and post logic. See [roadmap/mvp-feature-plan.md](./roadmap/mvp-feature-plan.md) for handler specifications.
 
 ## Roadmap Subfolder
 

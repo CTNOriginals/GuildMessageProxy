@@ -1,13 +1,15 @@
 package events
 
 import (
-	"log"
-
+	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 	"github.com/bwmarrin/discordgo"
 )
 
 // HandleReady logs bot startup confirmation.
 func HandleReady(s *discordgo.Session, r *discordgo.Ready) {
-	log.Printf("Bot is ready! Logged in as %s#%s (ID: %s)", r.User.Username, r.User.Discriminator, r.User.ID)
-	log.Printf("Connected to %d guilds", len(r.Guilds))
+	logging.Info("bot ready",
+		logging.String("username", r.User.Username),
+		logging.String("session_id", r.SessionID),
+		logging.Int("connected_guilds", len(r.Guilds)),
+	)
 }
