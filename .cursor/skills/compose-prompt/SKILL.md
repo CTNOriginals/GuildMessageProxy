@@ -5,26 +5,23 @@ description: Compose effective prompts for subagents by improving clarity, struc
 
 # Compose Prompt
 
-Use this skill to improve prompts before sending them to subagents.
+Improve prompts before sending them to subagents for clarity, structure, and conciseness.
 
 ## When to Apply
 
-- Writing a new prompt for any subagent
-- Reviewing or refining an existing prompt
-- Converting user requests into proper subagent prompts
-- Reducing token count while preserving intent
+- Writing new prompts for subagents
+- Reviewing or refining existing prompts
+- Converting user requests into subagent prompts
 
 ## Optimization Checklist
 
-Run through these checks for every prompt:
-
-- [ ] Spelling and grammar are correct
-- [ ] Instructions are unambiguous and specific
+- [ ] Spelling and grammar correct
+- [ ] Instructions unambiguous and specific
 - [ ] No redundant or filler language
-- [ ] Sufficient context provided (file paths, relevant code, constraints)
+- [ ] Sufficient context (file paths, code, constraints)
 - [ ] Clear structure with logical sections
-- [ ] Expected output format is specified
-- [ ] Token count is minimized (no unnecessary words)
+- [ ] Expected output format specified
+- [ ] Token count minimized
 
 ## Optimization Steps
 

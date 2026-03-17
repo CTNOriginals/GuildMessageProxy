@@ -1,6 +1,6 @@
 ---
 name: check-rules
-description: Audit your own recent changes in this conversation against project rules. Read all .cursor/rules/ files and verify recent edits comply with established conventions. Use when the user asks to check rules or when reviewing your own recent work for compliance.
+description: Audit recent changes against all project rules. Read .cursor/rules/ files and verify edits comply with established conventions. Use when the user asks to check rules or when reviewing recent work for compliance.
 ---
 
 # Check Rules
