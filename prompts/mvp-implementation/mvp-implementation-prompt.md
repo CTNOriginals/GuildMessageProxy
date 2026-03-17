@@ -46,6 +46,21 @@ Read these files before planning:
 
 ## Implementation Plan
 
+### Phase 0: Research
+
+Explore codebase patterns:
+- Review command registration in internal/commands/
+- Examine existing handler implementations
+- Study interaction routing in internal/events/
+- Analyze storage patterns in internal/storage/
+
+Research external documentation:
+- Discord API: webhooks, interactions, ephemeral messages
+- DiscordGo: relevant types and methods
+- Identify knowledge gaps and unknown endpoints
+
+Deliverable: Research summary documenting key patterns, unknowns, and implementation approach.
+
 ### Phase 1: Command Definitions
 
 Add command definitions to internal/commands/:
@@ -85,6 +100,7 @@ Build and verify:
 Update docs/ to reflect implementation:
 - docs/ROUTE_MAP.md - document command flows
 - docs/INDEX.md - mark MVP complete
+- keep overall documentation in sync proactively
 
 ## Deliverables
 
