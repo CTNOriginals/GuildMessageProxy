@@ -29,10 +29,7 @@ PR(hotfix/memory-leak > main): fix goroutine leak in event handler
 
 ### PR Body Creation
 
-When creating PRs via the `gh` CLI:
-
-- Write body text to a temporary file using the Write tool, then reference it with `--body-file`
-- Clean up temporary files after the PR is created
+Write body text to a temporary file using the Write tool, then reference it with `--body-file`. Clean up temporary files after creation.
 
 ### Example
 

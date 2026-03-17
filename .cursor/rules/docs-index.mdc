@@ -5,9 +5,9 @@ alwaysApply: true
 
 # INDEX Entry Point for Documentation Directories
 
-When exploring or working with a **documentation-type directory** (e.g., `docs/`, `.cursor/agents/`, or any directory whose purpose is documentation or agent guidance), look for a file named `INDEX.md` in that directory.
+When exploring a **documentation-type directory** (e.g., `docs/`, `.cursor/agents/`), look for `INDEX.md`.
 
-If `INDEX.md` is present, treat it as the **entry point** for that whole directory. Read it first to understand the structure, purpose, and navigation of that section before diving into other files.
+If present, treat it as the **entry point**. Read it first to understand structure, purpose, and navigation before diving into other files.
 
 ## Workflow
 
