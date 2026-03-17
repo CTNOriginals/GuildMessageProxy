@@ -1,9 +1,8 @@
 package events
 
 import (
-	"log"
-
 	"github.com/bwmarrin/discordgo"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
 
@@ -14,27 +13,48 @@ func HandleGuildCreate(store storage.Store) func(*discordgo.Session, *discordgo.
 		// Upsert guild metadata
 		var err error = store.SaveGuild(g.ID, g.Name)
 		if err != nil {
-			log.Printf("Failed to save guild %s (%s): %v", g.ID, g.Name, err)
+			logging.Error("failed to save guild",
+				logging.String("guild_id", g.ID),
+				logging.String("guild_name", g.Name),
+				logging.Err("error", err),
+			)
 			return
 		}
+
+		logging.Info("guild create received",
+			logging.String("guild_id", g.ID),
+			logging.String("guild_name", g.Name),
+			logging.Int("member_count", g.MemberCount),
+		)
 
 		// Ensure default config exists
 		var config *storage.GuildConfig
 		config, err = store.GetGuildConfig(g.ID)
 		if err != nil {
-			log.Printf("Failed to get guild config for %s: %v", g.ID, err)
+			logging.Error("failed to get guild config",
+				logging.String("guild_id", g.ID),
+				logging.Err("error", err),
+			)
 			return
 		}
 
 		if config == nil {
 			err = store.SaveGuildConfig(storage.GuildConfig{GuildID: g.ID})
 			if err != nil {
-				log.Printf("Failed to save default guild config for %s: %v", g.ID, err)
+				logging.Error("failed to save default guild config",
+					logging.String("guild_id", g.ID),
+					logging.Err("error", err),
+				)
 				return
 			}
-			log.Printf("Created default config for guild %s (%s)", g.ID, g.Name)
+			logging.Debug("created default guild config",
+				logging.String("guild_id", g.ID),
+			)
 		}
 
-		log.Printf("Guild ready: %s (%s)", g.Name, g.ID)
+		logging.Info("guild ready",
+			logging.String("guild_id", g.ID),
+			logging.String("guild_name", g.Name),
+		)
 	}
 }
