@@ -1,9 +1,9 @@
 ---
-name: prompt-optimizer
-description: Optimize prompts for subagents by improving clarity, structure, conciseness, and effectiveness. Use when writing or refining prompts for any subagent to ensure clear instructions, proper context, and minimal token usage.
+name: compose-prompt
+description: Compose effective prompts for subagents by improving clarity, structure, conciseness, and effectiveness. Use when writing or refining prompts for any subagent to ensure clear instructions, proper context, and minimal token usage.
 ---
 
-# Prompt Optimizer
+# Compose Prompt
 
 Use this skill to improve prompts before sending them to subagents.
 
