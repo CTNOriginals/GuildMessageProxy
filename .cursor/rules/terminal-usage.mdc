@@ -1,10 +1,38 @@
 ---
-description: Use a single terminal per agent instance; reuse it instead of opening new ones.
+description: Guidelines for terminal and shell command usage
 alwaysApply: true
 ---
 
 # Terminal Usage
 
+## Terminal Instance Management
+
 When executing terminal commands, use at most one terminal instance per (sub)agent. Reuse the initial terminal instead of opening additional ones.
 
 **Rule:** One terminal per agent instance.
+
+## Shell Command Guidelines
+
+When constructing shell commands:
+
+- Do NOT use `$(cmd)` syntax for command substitution
+- Do NOT use backticks for command substitution
+- Instead, write content to temporary files and reference them, or use direct value passing
+
+### Examples
+
+**Avoid:**
+```bash
+# Command substitution
+git commit -m "$(echo 'some message')"
+gh pr create --body "$(cat file.txt)"
+```
+
+**Prefer:**
+```bash
+# Direct value passing
+git commit -m "feat(api): add endpoint"
+
+# File-based approach for multi-line content
+gh pr create --title "PR(feature > main): add feature" --body-file .cursor/pr-body.txt
+```

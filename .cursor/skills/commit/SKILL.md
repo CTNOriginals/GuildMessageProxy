@@ -7,7 +7,7 @@ description: Stage and commit changes using conventional commits format. Use whe
 
 Use this skill when the user asks to commit, save changes, or create a git commit.
 
-For commit message format (type, scope, description, examples), see `.cursor/rules/conventional-commits.mdc`.
+For commit message format (type, scope, description, examples), see `.cursor/rules/git-commit.mdc`.
 
 ## Grouping
 
