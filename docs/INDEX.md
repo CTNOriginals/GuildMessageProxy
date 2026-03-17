@@ -26,6 +26,7 @@ This folder contains documentation to help AI agents and developers navigate the
 - **"What does X mean?"** -> [GLOSSARY.md](./GLOSSARY.md)
 - **"What is planned for this project?"** -> [roadmap/](./roadmap/)
 - **"What is the full infrastructure design?"** -> [roadmap/infrastructure.md](./roadmap/infrastructure.md)
+- **"What is the logging strategy?"** -> [roadmap/logging-infrastructure.md](./roadmap/logging-infrastructure.md)
 - **"How does event routing and infrastructure work?"** -> [ARCHITECTURE.md](./ARCHITECTURE.md#internal-events), [ROUTE_MAP.md](./ROUTE_MAP.md#interaction-routing), [roadmap/infrastructure.md](./roadmap/infrastructure.md)
 
 ## Project State
