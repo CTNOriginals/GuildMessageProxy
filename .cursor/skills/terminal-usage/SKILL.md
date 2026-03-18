@@ -1,9 +1,9 @@
 ---
-name: use-terminal
+name: terminal-usage
 description: Use terminal instances efficiently within agent workflows
 ---
 
-# Use Terminal
+# Terminal Usage
 
 ## Terminal Instance Management
 
