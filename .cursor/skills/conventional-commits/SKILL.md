@@ -35,6 +35,8 @@ Use `!` after type/scope: `feat(api)!: require Node 8+ for ES2015` or add footer
 
 Write descriptions in "why" manner: focus on benefit, outcome, or reason - not implementation detail.
 
+**Hard rule:** The commit title MUST NOT exceed 50 characters.
+
 ## Examples
 
 ```
