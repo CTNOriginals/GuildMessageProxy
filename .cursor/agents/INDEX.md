@@ -2,6 +2,7 @@
 
 | Agent | Use when |
 |-------|----------|
+| manager | Overseeing entire projects; coordinates multiple project-leaders for large initiatives |
 | project-leader | Complex multi-step tasks requiring planning, delegation, and end-to-end oversight |
 | documenter | Creating or updating project docs |
 | developer | Building features, adding packages, extending the codebase |
