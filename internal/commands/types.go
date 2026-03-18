@@ -1,5 +1,7 @@
 package commands
 
+import "github.com/bwmarrin/discordgo"
+
 // TSlashCommand identifies slash commands by their name.
 type TSlashCommand string
 
@@ -20,16 +22,21 @@ type TUserCommand string
 
 // Slash command constants follow naming: context-action (e.g., compose-create)
 const (
-	// Placeholder slash command for verification sync
-	ComposeCreate TSlashCommand = "compose-create"
+	// Compose commands
+	ComposeCreate  TSlashCommand = "compose-create"
+	ComposePost    TSlashCommand = "compose-post"
+	ComposePropose TSlashCommand = "compose-propose"
 )
 
 // Button constants follow naming: button_<context>_<action>
-// Example: button_compose-create_post, button_compose-create_cancel
 const (
-	// Placeholder button types for future implementation
-	ButtonComposeCreatePost   TButton = "button_compose-create_post"
-	ButtonComposeCreateCancel TButton = "button_compose-create_cancel"
+	// Compose preview buttons
+	ButtonComposePreviewPost   TButton = "button_compose_preview_post"
+	ButtonComposePreviewCancel TButton = "button_compose_preview_cancel"
+
+	// Edit proposal buttons
+	ButtonEditPreviewApply  TButton = "button_edit_preview_apply"
+	ButtonEditPreviewCancel TButton = "button_edit_preview_cancel"
 )
 
 // Select menu constants follow naming: select_<context>_<action>
@@ -58,3 +65,14 @@ const (
 	// Placeholder user command types for future implementation
 	UserInfo TUserCommand = "user-info"
 )
+
+// SButtonDef defines a button handler
+type SButtonDef struct {
+	Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
+}
+
+// MButtonDefinitions maps button custom IDs to their handlers
+type MButtonDefinitions map[TButton]SButtonDef
+
+// ButtonDefinitions is the source of truth for button handlers
+var ButtonDefinitions MButtonDefinitions = make(MButtonDefinitions)

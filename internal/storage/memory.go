@@ -9,15 +9,17 @@ import (
 // MemoryStore provides an in-memory implementation of the Store interface.
 // Data is lost when the process terminates - suitable for development and MVP.
 type MemoryStore struct {
-	guilds       map[string]*Guild
-	guildConfigs map[string]*GuildConfig
+	guilds        map[string]*Guild
+	guildConfigs  map[string]*GuildConfig
+	proxyMessages map[string]*ProxyMessage
 }
 
 // NewMemoryStore creates a new in-memory store with initialized maps.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		guilds:       make(map[string]*Guild),
-		guildConfigs: make(map[string]*GuildConfig),
+		guilds:        make(map[string]*Guild),
+		guildConfigs:  make(map[string]*GuildConfig),
+		proxyMessages: make(map[string]*ProxyMessage),
 	}
 }
 
@@ -135,4 +137,127 @@ func (m *MemoryStore) GetGuildConfig(guildID string) (*GuildConfig, error) {
 		logging.String("result", result),
 	)
 	return config, nil
+}
+
+// SaveProxyMessage stores or updates proxy message metadata.
+// Uses upsert pattern: overwrites existing data if message already exists.
+func (m *MemoryStore) SaveProxyMessage(msg ProxyMessage) error {
+	if msg.GuildID == "" || msg.MessageID == "" {
+		logging.Error("storage error",
+			logging.String("operation", "SaveProxyMessage"),
+			logging.String("error_category", "validation"),
+			logging.Err("error", fmt.Errorf("guildID and messageID cannot be empty")),
+		)
+		return fmt.Errorf("guildID and messageID cannot be empty")
+	}
+
+	var key = msg.GuildID + ":" + msg.MessageID
+	logging.Debug("storage write",
+		logging.String("operation", "SaveProxyMessage"),
+		logging.String("key", key),
+	)
+
+	m.proxyMessages[key] = &ProxyMessage{
+		GuildID:      msg.GuildID,
+		ChannelID:    msg.ChannelID,
+		MessageID:    msg.MessageID,
+		OwnerID:      msg.OwnerID,
+		Content:      msg.Content,
+		CreatedAt:    msg.CreatedAt,
+		LastEditedAt: msg.LastEditedAt,
+		LastEditedBy: msg.LastEditedBy,
+		WebhookID:    msg.WebhookID,
+		WebhookToken: msg.WebhookToken,
+	}
+	return nil
+}
+
+// GetProxyMessage retrieves proxy message metadata by guild ID and message ID.
+// Returns nil if message not found.
+func (m *MemoryStore) GetProxyMessage(guildID, messageID string) (*ProxyMessage, error) {
+	if guildID == "" || messageID == "" {
+		logging.Error("storage error",
+			logging.String("operation", "GetProxyMessage"),
+			logging.String("error_category", "validation"),
+			logging.Err("error", fmt.Errorf("guildID and messageID cannot be empty")),
+		)
+		return nil, fmt.Errorf("guildID and messageID cannot be empty")
+	}
+
+	var key = guildID + ":" + messageID
+	msg, ok := m.proxyMessages[key]
+	result := "hit"
+	if !ok {
+		result = "miss"
+	}
+	logging.Debug("storage read",
+		logging.String("operation", "GetProxyMessage"),
+		logging.String("key", key),
+		logging.String("result", result),
+	)
+	return msg, nil
+}
+
+// UpdateProxyMessage updates existing proxy message metadata.
+// Returns error if message does not exist.
+func (m *MemoryStore) UpdateProxyMessage(msg ProxyMessage) error {
+	if msg.GuildID == "" || msg.MessageID == "" {
+		logging.Error("storage error",
+			logging.String("operation", "UpdateProxyMessage"),
+			logging.String("error_category", "validation"),
+			logging.Err("error", fmt.Errorf("guildID and messageID cannot be empty")),
+		)
+		return fmt.Errorf("guildID and messageID cannot be empty")
+	}
+
+	var key = msg.GuildID + ":" + msg.MessageID
+	if _, exists := m.proxyMessages[key]; !exists {
+		logging.Error("storage error",
+			logging.String("operation", "UpdateProxyMessage"),
+			logging.String("error_category", "not_found"),
+			logging.String("key", key),
+			logging.Err("error", fmt.Errorf("proxy message not found")),
+		)
+		return fmt.Errorf("proxy message not found: %s", key)
+	}
+
+	logging.Debug("storage write",
+		logging.String("operation", "UpdateProxyMessage"),
+		logging.String("key", key),
+	)
+
+	m.proxyMessages[key] = &ProxyMessage{
+		GuildID:      msg.GuildID,
+		ChannelID:    msg.ChannelID,
+		MessageID:    msg.MessageID,
+		OwnerID:      msg.OwnerID,
+		Content:      msg.Content,
+		CreatedAt:    msg.CreatedAt,
+		LastEditedAt: msg.LastEditedAt,
+		LastEditedBy: msg.LastEditedBy,
+		WebhookID:    msg.WebhookID,
+		WebhookToken: msg.WebhookToken,
+	}
+	return nil
+}
+
+// DeleteProxyMessage removes proxy message metadata.
+// No error if message does not exist.
+func (m *MemoryStore) DeleteProxyMessage(guildID, messageID string) error {
+	if guildID == "" || messageID == "" {
+		logging.Error("storage error",
+			logging.String("operation", "DeleteProxyMessage"),
+			logging.String("error_category", "validation"),
+			logging.Err("error", fmt.Errorf("guildID and messageID cannot be empty")),
+		)
+		return fmt.Errorf("guildID and messageID cannot be empty")
+	}
+
+	var key = guildID + ":" + messageID
+	logging.Debug("storage delete",
+		logging.String("operation", "DeleteProxyMessage"),
+		logging.String("key", key),
+	)
+	delete(m.proxyMessages, key)
+	return nil
 }

@@ -1,5 +1,7 @@
 package storage
 
+import "time"
+
 // Guild stores minimal metadata about a Discord guild.
 type Guild struct {
 	ID   string
@@ -7,13 +9,17 @@ type Guild struct {
 }
 
 // ProxyMessage stores metadata about a proxied message.
-// Flags are placeholders for MVP.
 type ProxyMessage struct {
-	GuildID   string
-	ChannelID string
-	MessageID string
-	OwnerID   string
-	// Flags for MVP - placeholder for future features
+	GuildID      string
+	ChannelID    string
+	MessageID    string
+	OwnerID      string
+	Content      string     // stored for edit reference
+	CreatedAt    time.Time
+	LastEditedAt *time.Time // nil if never edited
+	LastEditedBy string     // empty if never edited
+	WebhookID    string     // for editing via webhook
+	WebhookToken string     // for editing via webhook
 }
 
 // GuildConfig stores per-guild configuration settings.
@@ -36,4 +42,10 @@ type Store interface {
 	// Guild config operations
 	SaveGuildConfig(config GuildConfig) error
 	GetGuildConfig(guildID string) (*GuildConfig, error)
+
+	// Proxy message operations
+	SaveProxyMessage(msg ProxyMessage) error
+	GetProxyMessage(guildID, messageID string) (*ProxyMessage, error)
+	UpdateProxyMessage(msg ProxyMessage) error
+	DeleteProxyMessage(guildID, messageID string) error
 }

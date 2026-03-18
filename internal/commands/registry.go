@@ -7,35 +7,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// ComposeCreateDefinition is the Discord ApplicationCommand definition for the placeholder command.
-var ComposeCreateDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
-	Name:        string(ComposeCreate),
-	Description: "Create a new proxied message composition",
-}
-
-// ComposeCreateExecute is the placeholder execute function for compose-create.
-func ComposeCreateExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "Compose command placeholder - implementation pending",
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
-	})
-	if err != nil {
-		log.Printf("Failed to respond to compose-create: %v", err)
-	}
-}
-
 // CommandDefinitions maps slash command types to their full definitions.
 // This is the source of truth for command registration.
-var CommandDefinitions MCommandDefinitions = MCommandDefinitions{
-	ComposeCreate: {
-		Definition: ComposeCreateDefinition,
-		Execute:    ComposeCreateExecute,
-		Autocomplete: nil,
-	},
-}
+// Commands are registered by individual command files in their init() functions.
+var CommandDefinitions MCommandDefinitions = make(MCommandDefinitions)
 
 // desiredCommands returns the list of ApplicationCommand definitions to register.
 func desiredCommands() []*discordgo.ApplicationCommand {

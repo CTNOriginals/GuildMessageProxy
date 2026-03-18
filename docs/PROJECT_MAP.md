@@ -20,15 +20,17 @@ GuildMessageProxy/
 |   |
 |   |-- commands/
 |   |   |-- types.go              [EXISTS] TSlashCommand, TButton, TSelectMenu, TModalSubmit, TMessageCommand, TUserCommand + const blocks
-|   |   |-- compose.go            [PLANNED] /compose group + subcommands
+|   |   |-- compose.go            [EXISTS] /compose group + subcommands
+|   |   |-- definitions.go        [EXISTS] Command and button definitions
 |   |   |-- registry.go           [EXISTS] Command definitions + startup sync (fetch, diff, bulk overwrite)
 |   |   |-- (admin.go, config.go) [FUTURE] Other command groups
 |   |
 |   |-- handlers/
-|   |   |-- preview.go           [PLANNED] Render preview message payload
-|   |   |-- post.go              [PLANNED] Post/update proxied message
-|   |   |-- permissions.go       [PLANNED] Who can create/set/propose/post
-|   |   |-- validation.go        [PLANNED] Shared input validation
+|   |   |-- preview.go           [EXISTS] Render preview message payload
+|   |   |-- post.go              [EXISTS] Post/update proxied message
+|   |   |-- edit.go              [EXISTS] Edit proxied message handler
+|   |   |-- permissions.go       [EXISTS] Who can create/set/propose/post
+|   |   |-- validation.go        [EXISTS] Shared input validation
 |   |
 |   |-- storage/
 |   |   |-- memory.go            [EXISTS] In-memory proxy metadata
@@ -78,18 +80,18 @@ GuildMessageProxy/
 
 | Area | Status |
 |------|--------|
-| `cmd/bot/main.go` | Exists - full features (flags, sync, graceful shutdown) |
-| `internal/` | Exists - all packages implemented |
-| Slash commands | Registered (placeholder compose command) |
-| Storage | Implemented (in-memory) |
-| Handlers | Not yet created |
+| `cmd/bot/main.go` | Exists - full features |
+| `internal/commands/compose.go` | Exists - full implementation |
+| `internal/handlers/` | Exists - preview, post, edit, validation, permissions |
+| `internal/storage/` | Exists - in-memory with proxy message support |
+| `internal/events/` | Exists - interaction routing with button support |
 | `docs/` | Exists - agent docs and roadmap |
 
 ## Key Files to Know
 
 - **main.go** - Thin entry point. Load config, init session, wire handlers, graceful shutdown.
 - **registry.go** - Command definitions and startup sync: fetch existing, diff against desired, bulk overwrite only when changed. Supports `--guild` (dev) or `--global` (prod).
-- **compose.go** (planned) - Main user-facing command group for compose/create/set/propose/post.
+- **compose.go** - Main user-facing command group for compose/create/propose/post.
 - **handlers/** - Shared logic used by multiple commands. Keep commands thin.
 
 ## Environment Variables (.env.example)
