@@ -50,6 +50,9 @@ func main() {
 	var store storage.Store = storage.NewMemoryStore()
 	logging.Info("storage initialized", logging.String("type", "memory"))
 
+	// Initialize command handlers with storage
+	commands.Store = store
+
 	var bot, err = discordgo.New("Bot " + Token)
 	if err != nil {
 		logging.Fatal("unable to create discord bot instance", logging.Err("error", err))
