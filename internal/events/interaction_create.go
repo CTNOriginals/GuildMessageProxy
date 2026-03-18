@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/commands"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
+	"github.com/bwmarrin/discordgo"
 )
 
 // getInteractionContext returns standard Discord context fields for an interaction
@@ -98,18 +98,30 @@ func handleMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate
 	}
 }
 
-// handleButton routes button interactions.
+// handleButton routes button interactions by their CustomID.
 func handleButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
-	_ = commands.TButton(customID) // Will be used when button definitions are registered
+	var buttonType commands.TButton = commands.TButton(customID)
 
-	// Placeholder: No button definitions registered yet in MVP
-	// This will be populated as features are added
-	logging.Info("button clicked",
-		logging.String("button_id", customID),
-		logging.String("user_id", i.Member.User.ID),
-		logging.String("guild_id", i.GuildID),
-	)
-	RespondToUser(s, i, "Button action not yet implemented: "+customID)
+	if def, ok := commands.ButtonDefinitions[buttonType]; ok {
+		logging.Info("button execution started",
+			logging.String("button_id", customID),
+			logging.String("user_id", i.Member.User.ID),
+			logging.String("guild_id", i.GuildID),
+		)
+
+		def.Execute(s, i)
+
+		logging.Info("button execution completed",
+			logging.String("button_id", customID),
+		)
+	} else {
+		logging.Warn("unknown button clicked",
+			logging.String("button_id", customID),
+			logging.String("user_id", i.Member.User.ID),
+			logging.String("guild_id", i.GuildID),
+		)
+		RespondToUser(s, i, "Unknown button action: "+customID)
+	}
 }
 
 // handleSelectMenu routes select menu interactions.
