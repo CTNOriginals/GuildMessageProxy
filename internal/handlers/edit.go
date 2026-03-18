@@ -16,13 +16,23 @@ type EditResult struct {
 
 // EditProxiedMessage updates an existing proxied message via webhook.
 // Uses stored webhook ID and token from proxy metadata.
-func EditProxiedMessage(s *discordgo.Session, proxyMsg *storage.ProxyMessage, newContent, editedBy string, store storage.Store) EditResult {
+func EditProxiedMessage(s DiscordSession, proxyMsg *storage.ProxyMessage, newContent, editedBy string, store storage.Store) EditResult {
 	// Check if we have webhook credentials
 	if proxyMsg.WebhookID == "" || proxyMsg.WebhookToken == "" {
 		return EditResult{
 			Success: false,
 			Error:   "Cannot edit: webhook credentials not found for this message.",
 		}
+	}
+
+	// Trigger typing indicator before webhook edit
+	var typingErr error = s.ChannelTyping(proxyMsg.ChannelID)
+	if typingErr != nil {
+		// Non-fatal: log but continue
+		logging.Debug("Failed to trigger typing indicator",
+			logging.String("channel_id", proxyMsg.ChannelID),
+			logging.Err("error", typingErr),
+		)
 	}
 
 	// Edit the webhook message using WebhookMessageEdit
