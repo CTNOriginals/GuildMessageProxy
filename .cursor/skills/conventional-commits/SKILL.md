@@ -1,15 +1,13 @@
 ---
-description: Guidelines for git commit messages
-alwaysApply: true
+name: conventional-commits
+description: Write standardized commit messages using the Conventional Commits specification
 ---
 
-# Git Commit Guidelines
-
-## Conventional Commits
+# Conventional Commits
 
 Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages.
 
-### Format
+## Format
 
 ```
 type(scope): description
@@ -19,25 +17,27 @@ type(scope): description
 [optional footer(s)]
 ```
 
-### Types
+## Types
 
 - **feat**: New feature (SemVer MINOR)
 - **fix**: Bug fix (SemVer PATCH)
 - **docs**, **style**, **refactor**, **perf**, **test**, **build**, **ci**, **chore**: Other changes
 
-### Scope
+## Scope
 
 Mandatory. Use a compact noun or path for context (e.g., `feat(api):` or `docs(cursor/rules):`). Keep scope short.
 
-### Breaking Changes
+## Breaking Changes
 
 Use `!` after type/scope: `feat(api)!: require Node 8+ for ES2015` or add footer: `BREAKING CHANGE: description`.
 
-### Title Format
+## Title Format
 
 Write descriptions in "why" manner: focus on benefit, outcome, or reason - not implementation detail.
 
-### Examples
+**Hard rule:** The commit title MUST NOT exceed 50 characters.
+
+## Examples
 
 ```
 feat(auth): enable users to sign in

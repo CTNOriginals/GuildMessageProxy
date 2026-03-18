@@ -1,9 +1,9 @@
 ---
-description: Use INDEX.md as the entry point for documentation-type directories
-alwaysApply: true
+name: explore-docs
+description: Explore documentation directories by finding and using INDEX.md as the entry point
 ---
 
-# INDEX Entry Point for Documentation Directories
+# Explore Documentation Directories
 
 When exploring a **documentation-type directory** (e.g., `docs/`, `.cursor/agents/`), look for `INDEX.md`.
 

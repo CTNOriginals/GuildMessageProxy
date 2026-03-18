@@ -2,12 +2,14 @@
 
 | Agent | Use when |
 |-------|----------|
+| manager | Overseeing entire projects; coordinates multiple project-leaders for large initiatives |
+| project-leader | Complex multi-step tasks requiring planning, delegation, and end-to-end oversight |
+| researcher | Investigating how something works, finding where code lives, gathering context |
 | documenter | Creating or updating project docs |
 | developer | Building features, adding packages, extending the codebase |
-| reviewer | Reviewing PRs, changes, or when the user asks for a code review |
-| verifier | Validating completed work, confirming tests pass |
 | tester | Running tests, analyzing failures, fixing test issues |
-| researcher | Investigating how something works, finding where code lives, gathering context |
+| verifier | Validating completed work, confirming tests pass |
+| reviewer | Reviewing PRs, changes, or when the user asks for a code review |
 
 ## Shared Instructions
 

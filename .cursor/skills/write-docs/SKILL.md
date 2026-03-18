@@ -1,9 +1,9 @@
 ---
-description: Minimize file references in permanent documentation to reduce maintenance burden. Avoid naming specific files, unless critically relevant.
-alwaysApply: true
+name: write-docs
+description: Write maintainable documentation by minimizing specific file references
 ---
 
-# Documentation References
+# Write Maintainable Documentation
 
 Avoid file-specific references in permanent documentation unless <= 2 are critically relevant.
 

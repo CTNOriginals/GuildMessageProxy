@@ -1,13 +1,11 @@
 ---
-description: Guidelines for GitHub CLI (gh) usage
-alwaysApply: true
+name: create-pull-request
+description: Create GitHub pull requests using the gh CLI with standardized title format
 ---
 
-# GitHub CLI Guidelines
+# Create Pull Request
 
-## Pull Request Creation
-
-### PR Title Format
+## PR Title Format
 
 For pull request titles, use this format:
 
@@ -19,7 +17,7 @@ PR(current > target): description
 - **target**: The branch being merged into (e.g., `main`)
 - **description**: Follows the conventional commit description format
 
-### PR Title Examples
+## PR Title Examples
 
 ```
 PR(infrastructure > main): add core infrastructure components
@@ -27,11 +25,11 @@ PR(feature/api > develop): implement user authentication
 PR(hotfix/memory-leak > main): fix goroutine leak in event handler
 ```
 
-### PR Body Creation
+## PR Body Creation
 
 Write body text to a temporary file using the Write tool, then reference it with `--body-file`. Clean up temporary files after creation.
 
-### Example
+## Example
 
 ```bash
 # Write to file first, then use --body-file

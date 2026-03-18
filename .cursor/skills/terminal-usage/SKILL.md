@@ -1,6 +1,6 @@
 ---
-description: Guidelines for terminal and shell command usage
-alwaysApply: true
+name: terminal-usage
+description: Use terminal instances efficiently within agent workflows
 ---
 
 # Terminal Usage

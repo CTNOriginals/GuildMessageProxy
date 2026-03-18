@@ -1,6 +1,7 @@
 ---
 name: dont-explain
-description: Execute task without explanation or summary to reduce token usage. Skip preamble, reasoning, and recap. Use when the user invokes /dont-explain to perform work silently.
+description: Execute task without explanation or summary to reduce token usage. Skip preamble, reasoning, and recap.
+disable-model-invocation: true
 ---
 
 # Don't Explain
