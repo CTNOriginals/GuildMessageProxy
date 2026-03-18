@@ -2,6 +2,7 @@
 
 | Agent | Use when |
 |-------|----------|
+| project-leader | Complex multi-step tasks requiring planning, delegation, and end-to-end oversight |
 | documenter | Creating or updating project docs |
 | developer | Building features, adding packages, extending the codebase |
 | reviewer | Reviewing PRs, changes, or when the user asks for a code review |

@@ -1,6 +1,8 @@
 ---
 name: project-leader
-description: Top-level orchestrator for complex, multi-step tasks requiring planning, delegation, and end-to-end oversight. Only the user can invoke this skill.
+description: Top-level orchestrator for complex, multi-step tasks requiring planning, delegation, and end-to-end oversight. Only the user can invoke this agent.
+model: inherit
+readonly: true
 ---
 
 # Project Leader
