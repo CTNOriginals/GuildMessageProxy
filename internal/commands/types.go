@@ -20,12 +20,27 @@ type TMessageCommand string
 // TUserCommand identifies user context menu commands by their name.
 type TUserCommand string
 
-// Slash command constants follow naming: context-action (e.g., compose-create)
+// Slash command constants follow naming: context-action (e.g., compose-draft)
 const (
-	// Compose commands
-	ComposeCreate  TSlashCommand = "compose-create"
-	ComposePost    TSlashCommand = "compose-post"
-	ComposePropose TSlashCommand = "compose-propose"
+	// Compose commands (new naming)
+	ComposeDraft TSlashCommand = "compose-draft"
+	ComposeSend  TSlashCommand = "compose-send"
+	ComposeEdit  TSlashCommand = "compose-edit"
+
+	// Backward compatibility aliases (old names)
+	ComposeCreate  TSlashCommand = ComposeDraft
+	ComposePost    TSlashCommand = ComposeSend
+	ComposePropose TSlashCommand = ComposeEdit
+
+	// Config commands (admin-only guild configuration)
+	ConfigRole     TSlashCommand = "config-role"
+	ConfigChannel  TSlashCommand = "config-channel"
+	ConfigRestrict TSlashCommand = "config-restrict"
+	ConfigAllow    TSlashCommand = "config-allow"
+	ConfigDefaults TSlashCommand = "config-defaults"
+
+	// Message commands (message management)
+	MessageDelete TSlashCommand = "message-delete"
 )
 
 // Button constants follow naming: button_<context>_<action>
