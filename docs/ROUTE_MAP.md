@@ -6,18 +6,17 @@ Where commands are defined, how they flow, and how handlers are wired.
 
 Commands use subcommands under a top-level group. The main category is `/compose`.
 
-### Planned Commands
+### Implemented Commands
 
 | Route | Purpose |
 |-------|---------|
 | `/compose create` | Start a new draft with initial content |
-| `/compose set` | Adjust draft properties (channel, allow_edits, etc) |
 | `/compose propose` | Submit a proposed change to an existing proxied message |
 | `/compose post` | Confirm and post the current draft |
 
-MVP may collapse to `/compose create` + `/compose post` initially. Structure should allow growth.
+All MVP compose commands are fully implemented.
 
-## Flow: Compose -> Preview -> Post
+## Flow: Compose -> Preview -> Post (Implemented)
 
 ```
 User: /compose create (content)
@@ -33,7 +32,9 @@ User: clicks Cancel
   -> Bot: dismiss preview, discard draft
 ```
 
-## Flow: Basic Edit
+**Status**: Fully implemented in `internal/handlers/`.
+
+## Flow: Basic Edit (Implemented)
 
 ```
 User: /compose propose (target message, new content)
@@ -46,15 +47,18 @@ User: clicks Apply
   -> storage: update metadata (last edited by, last edited at)
 ```
 
-## Handler Wiring (Planned)
+**Status**: Fully implemented in `internal/handlers/edit.go`.
+
+## Handler Wiring (Implemented)
 
 | Flow Step | Handler | Called From |
 |-----------|---------|-------------|
 | Validate content | `handlers.ValidateContent` | compose create, compose propose |
-| Render preview | `handlers.RenderPreview` | compose create, compose propose |
-| Post message | `handlers.PostProxiedMessage` | compose post |
-| Edit message | `handlers.EditProxiedMessage` | compose propose (Apply) |
-| Permission check | `handlers.CanUseCompose` | all compose subcommands |
+| Validate permissions | `handlers.CanUseCompose` | all compose subcommands |
+| Render preview | `handlers.RenderPreviewResponse` | compose create, compose propose |
+| Post message | `handlers.PostProxiedMessage` | compose post, button handler |
+| Edit message | `handlers.EditProxiedMessage` | edit apply button handler |
+| Check edit permission | `handlers.ValidateEditPermission` | compose propose |
 
 ## Interaction Routing
 

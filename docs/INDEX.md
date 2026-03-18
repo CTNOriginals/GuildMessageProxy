@@ -29,19 +29,34 @@ This folder contains documentation to help AI agents and developers navigate the
 - **"What is the logging strategy?"** -> [roadmap/logging-infrastructure.md](./roadmap/logging-infrastructure.md)
 - **"How does event routing and infrastructure work?"** -> [ARCHITECTURE.md](./ARCHITECTURE.md#internal-events), [ROUTE_MAP.md](./ROUTE_MAP.md#interaction-routing), [roadmap/infrastructure.md](./roadmap/infrastructure.md)
 
+## Current Status
+
+MVP Implementation: **Complete** (Date: March 2026)
+
+### Completed Features
+
+- [x] `/compose create` - Create draft with preview
+- [x] `/compose post` - Direct post without preview
+- [x] `/compose propose` - Propose edits to existing messages
+- [x] Preview with Post/Cancel buttons
+- [x] Edit proposal with Apply/Cancel buttons
+- [x] Webhook-based message posting
+- [x] Proxy message metadata storage
+- [x] Basic permission checking (SendMessages)
+
 ## Project State
 
-As of the last doc update, the **infrastructure is COMPLETE**. The bot has:
+As of the last doc update, the **MVP is COMPLETE**. The bot has:
 
 - Full event handlers (Ready, GuildCreate, GuildDelete, InteractionCreate, Error)
 - Command sync system with diff detection (`--guild`, `--global`, `--no-sync` flags)
 - Interaction type system for command/data routing
 - Storage interface with in-memory implementation
-- Placeholder `/compose` command registered
+- Complete `/compose` command group with create, post, and propose subcommands
 - Graceful shutdown with runtime logging
-- Structured logging infrastructure (`internal/logging/` package with levels and contextual logging)
+- All MVP handlers implemented (preview, post, edit, validation, permissions)
 
-The **only remaining work for MVP** is the `internal/handlers/` package containing the compose, preview, and post logic. See [roadmap/mvp-feature-plan.md](./roadmap/mvp-feature-plan.md) for handler specifications.
+See [roadmap/mvp-feature-plan.md](./roadmap/mvp-feature-plan.md) for original handler specifications.
 
 ## Roadmap Subfolder
 
