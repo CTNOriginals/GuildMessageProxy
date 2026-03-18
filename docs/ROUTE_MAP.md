@@ -112,3 +112,8 @@ Planned extensions (see [docs/roadmap/infrastructure.md](./roadmap/infrastructur
 - **Voting**: Reaction handlers (`MESSAGE_REACTION_ADD`), approval buttons (`TButton`), state machine (Draft -> Pending -> Approved/Rejected), vote storage
 - **Admin/Config**: Uses `TSlashCommand`; no new interaction types
 - **Collaborative editing**: Edit button on messages, permission middleware, optional message context command "Edit this message"
+
+## See Also
+
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Command registration details and bot setup
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) - Debugging flows and common issues

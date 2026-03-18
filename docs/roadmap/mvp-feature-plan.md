@@ -1,5 +1,11 @@
 ## MVP Feature Plan - GuildMessageProxy
 
+## Status: COMPLETE
+
+All MVP features have been implemented and are in production.
+
+---
+
 This document describes the first version of GuildMessageProxy focused on composing, previewing, and posting proxy messages, plus a minimal editing flow.
 
 The goal is to ship a usable core with clear behavior before adding voting, advanced governance, or complex persistence.

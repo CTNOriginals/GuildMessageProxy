@@ -13,12 +13,6 @@ How the Go code is organized and how the bot interacts with Discord.
   - Event handlers wired: Ready, InteractionCreate, GuildCreate, GuildDelete
   - Command sync on startup with diff detection
   - Graceful shutdown with structured runtime logging via `internal/logging`
-- **Target state** (planned):
-  - Load configuration (env vars, flags)
-  - Initialize Discord session (token, intents)
-  - Sync commands on startup (fetch existing, diff, bulk overwrite if changed)
-  - Wire up command and event handlers
-  - Start the bot and manage graceful shutdown
 
 `main` should stay thin. Delegate real work to `internal/` packages.
 
@@ -35,7 +29,7 @@ Command-first layout. Each top-level category and its subcommands live together.
 
 | File | Contents |
 |------|----------|
-| `compose.go` | [PLANNED] `/compose` group + subcommands (create, set, propose, post). Handler/execute functions. Command-specific validation. Placeholder command definition exists in `registry.go`. |
+| `compose.go` | [EXISTS] `/compose` group + subcommands (create, post, propose). Handler/execute functions. Command-specific validation. |
 | `registry.go` | Command definitions and sync logic. On startup: fetch existing commands, compare with desired definitions, bulk overwrite only when different. Called from main. |
 | `admin.go`, `config.go` | Future command groups. Same pattern as compose. |
 

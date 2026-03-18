@@ -1,5 +1,11 @@
 # Infrastructure Design - GuildMessageProxy
 
+## Implementation Status
+
+This document describes the infrastructure design. Most sections are implemented as specified. See [ARCHITECTURE.md](../ARCHITECTURE.md) for current implementation details.
+
+---
+
 Single source of truth for infrastructure design: interaction types, naming conventions, definition structs, guild lifecycle, error handling, and post-MVP extensions.
 
 See [ARCHITECTURE.md](../ARCHITECTURE.md) for package layout and [ROUTE_MAP.md](../ROUTE_MAP.md) for routing flows.

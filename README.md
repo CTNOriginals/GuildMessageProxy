@@ -1,5 +1,8 @@
 # GuildMessageProxy
 
+![Go](https://img.shields.io/badge/Go-1.25-blue?logo=go)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 A Discord bot written in Go that allows you to compose messages with custom styling and markdown, then post them via webhooks. After posting, you can propose edits to the message without needing the original author to manually edit it.
 
 ## Features
@@ -12,16 +15,11 @@ A Discord bot written in Go that allows you to compose messages with custom styl
 
 ### Commands
 
-| Current Command | Description |
-|-----------------|-------------|
+| Command | Description |
+|---------|-------------|
 | `/compose create <content> [channel]` | Create a draft with preview before posting |
 | `/compose post <content> [channel]` | Post a message directly without preview |
-| `/compose propose <message> <content>` | Propose an edit to an existing proxied message |
-
-**Note:** These commands will be renamed in a future update to better reflect their purpose:
-- `/compose create` -> `/compose draft`
-- `/compose post` -> `/compose send`
-- `/compose propose` -> `/compose edit`
+| `/compose propose <message> <content>` | Propose an edit to an existing proxied message (owner only) |
 
 ## Prerequisites
 
@@ -51,6 +49,25 @@ DEV_GUILD_ID=your_test_guild_id
 DEV_CHANNEL_LOG_ID=logging_channel_id
 DEV_CHANNEL_ERROR_ID=error_channel_id
 ```
+
+## Quick Start
+
+Already have a Discord bot token? Get started in 3 steps:
+
+1. **Set your token** in `.env`:
+   ```
+   TOKEN=your_bot_token_here
+   ```
+
+2. **Run the bot**:
+   ```bash
+   make run
+   ```
+
+3. **Try a command** in Discord:
+   ```
+   /compose create Hello, World!
+   ```
 
 ## Running
 

@@ -36,6 +36,10 @@ GuildMessageProxy/
 |   |   |-- memory.go            [EXISTS] In-memory proxy metadata
 |   |   |-- interface.go         [EXISTS] Storage interface for swap later
 |
+|   |-- logging/
+|   |   |-- logging.go           [EXISTS] Structured logging implementation
+|   |   |-- levels.go            [EXISTS] Log level definitions
+|
 |-- docs/
 |   |-- INDEX.md                 [EXISTS] This index
 |   |-- PROJECT_MAP.md           [EXISTS] This file
@@ -43,6 +47,8 @@ GuildMessageProxy/
 |   |-- ROUTE_MAP.md             [EXISTS] Command routes
 |   |-- TEMPLATES.md             [EXISTS] File templates
 |   |-- GLOSSARY.md              [EXISTS] Terms and jargon
+|   |-- DEPLOYMENT.md            [EXISTS] Deployment guide
+|   |-- TROUBLESHOOTING.md      [EXISTS] Troubleshooting guide
 |   |-- roadmap/
 |   |   |-- overview.md          [EXISTS] Project purpose
 |   |   |-- mvp-feature-plan.md   [EXISTS] MVP flows
@@ -73,6 +79,7 @@ GuildMessageProxy/
 | Command definitions + startup sync | `internal/commands/registry.go` |
 | Reusable logic (preview, post, permissions) | `internal/handlers/` |
 | Persistence (proxy metadata, guild config) | `internal/storage/` |
+| Structured logging implementation | `internal/logging/*.go` |
 | Planning and design docs | `docs/roadmap/` |
 | Agent navigation docs | `docs/` (this folder) |
 
@@ -85,6 +92,7 @@ GuildMessageProxy/
 | `internal/handlers/` | Exists - preview, post, edit, validation, permissions |
 | `internal/storage/` | Exists - in-memory with proxy message support |
 | `internal/events/` | Exists - interaction routing with button support |
+| `internal/logging/` | Exists - structured logging with levels |
 | `docs/` | Exists - agent docs and roadmap |
 
 ## Key Files to Know
@@ -93,6 +101,7 @@ GuildMessageProxy/
 - **registry.go** - Command definitions and startup sync: fetch existing, diff against desired, bulk overwrite only when changed. Supports `--guild` (dev) or `--global` (prod).
 - **compose.go** - Main user-facing command group for compose/create/propose/post.
 - **handlers/** - Shared logic used by multiple commands. Keep commands thin.
+- **logging/** - Structured logging with configurable levels and output formatting.
 
 ## Environment Variables (.env.example)
 

@@ -12,6 +12,7 @@ This folder contains documentation to help AI agents and developers navigate the
 | [ROUTE_MAP.md](./ROUTE_MAP.md)       | Command routes, flows, handler wiring                         |
 | [TEMPLATES.md](./TEMPLATES.md)       | File templates, patterns for adding new features              |
 | [GLOSSARY.md](./GLOSSARY.md)         | Terms and jargon (proxy message, compose, ephemeral, etc)     |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Common issues, error codes, debugging, permissions           |
 | [roadmap/](./roadmap/)               | Planning docs - feature plans, architecture notes, infrastructure, safety |
 | [.cursor/agents/INDEX.md](../.cursor/agents/INDEX.md) | Subagent index - when to use documenter, developer, reviewer, etc |
 
@@ -24,6 +25,7 @@ This folder contains documentation to help AI agents and developers navigate the
 - **"What commands exist and how do they flow?"** -> [ROUTE_MAP.md](./ROUTE_MAP.md)
 - **"How do I add a new command/feature?"** -> [TEMPLATES.md](./TEMPLATES.md)
 - **"What does X mean?"** -> [GLOSSARY.md](./GLOSSARY.md)
+- **"Something is broken, how do I fix it?"** -> [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 - **"What is planned for this project?"** -> [roadmap/](./roadmap/)
 - **"What is the full infrastructure design?"** -> [roadmap/infrastructure.md](./roadmap/infrastructure.md)
 - **"What is the logging strategy?"** -> [roadmap/logging-infrastructure.md](./roadmap/logging-infrastructure.md)
