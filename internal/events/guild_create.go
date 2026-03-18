@@ -10,6 +10,7 @@ import (
 // Stores guild metadata and ensures default config exists when bot joins or reconnects.
 func HandleGuildCreate(store storage.Store) func(*discordgo.Session, *discordgo.GuildCreate) {
 	return func(s *discordgo.Session, g *discordgo.GuildCreate) {
+		defer recoverPanic("HandleGuildCreate")
 		// Upsert guild metadata
 		var err error = store.SaveGuild(g.ID, g.Name)
 		if err != nil {

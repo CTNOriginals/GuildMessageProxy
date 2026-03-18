@@ -1,6 +1,8 @@
 package events
 
 import (
+	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -8,6 +10,17 @@ import (
 	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 	"github.com/bwmarrin/discordgo"
 )
+
+// recoverPanic recovers from panics in handlers and logs them
+func recoverPanic(context string) {
+	if r := recover(); r != nil {
+		logging.Error("panic recovered in handler",
+			logging.String("context", context),
+			logging.String("panic", fmt.Sprintf("%v", r)),
+			logging.String("stack_trace", string(debug.Stack())),
+		)
+	}
+}
 
 // getInteractionContext returns standard Discord context fields for an interaction
 func getInteractionContext(i *discordgo.InteractionCreate) []logging.Field {
@@ -30,6 +43,7 @@ func getInteractionContext(i *discordgo.InteractionCreate) []logging.Field {
 // HandleInteractionCreate routes all interaction types to their appropriate handlers.
 // Supports: slash commands, message components (buttons, select menus), and modal submits.
 func HandleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer recoverPanic("HandleInteractionCreate")
 	logging.Debug("interaction received", getInteractionContext(i)...)
 
 	switch i.Type {
@@ -49,6 +63,7 @@ func HandleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreat
 
 // handleSlashCommand routes slash commands by their name.
 func handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer recoverPanic("handleSlashCommand")
 	var data discordgo.ApplicationCommandInteractionData = i.ApplicationCommandData()
 	var cmdType commands.TSlashCommand = commands.TSlashCommand(data.Name)
 
@@ -79,6 +94,7 @@ func handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 // handleMessageComponent routes buttons and select menus by their CustomID.
 func handleMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer recoverPanic("handleMessageComponent")
 	var data discordgo.MessageComponentInteractionData = i.MessageComponentData()
 	var customID string = data.CustomID
 
@@ -100,6 +116,7 @@ func handleMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate
 
 // handleButton routes button interactions by their CustomID.
 func handleButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
+	defer recoverPanic("handleButton")
 	var buttonType commands.TButton = commands.TButton(customID)
 
 	if def, ok := commands.ButtonDefinitions[buttonType]; ok {
@@ -126,6 +143,7 @@ func handleButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID
 
 // handleSelectMenu routes select menu interactions.
 func handleSelectMenu(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
+	defer recoverPanic("handleSelectMenu")
 	_ = commands.TSelectMenu(customID) // Will be used when select menu definitions are registered
 
 	// Placeholder: No select menu definitions registered yet in MVP
@@ -140,6 +158,7 @@ func handleSelectMenu(s *discordgo.Session, i *discordgo.InteractionCreate, cust
 
 // handleModalSubmit routes modal submit interactions by their CustomID.
 func handleModalSubmit(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer recoverPanic("handleModalSubmit")
 	var data discordgo.ModalSubmitInteractionData = i.ModalSubmitData()
 	var customID string = data.CustomID
 	var modalType commands.TModalSubmit = commands.TModalSubmit(customID)
