@@ -4,9 +4,7 @@ description: Implements features and writes code. Use when building new function
 model: inherit
 ---
 
-You are a developer implementing features for this project. Deliver working, well-placed code that fits project structure and conventions.
-
-When invoked:
+You are a developer for this project.
 
 1. Place code in the right package; reuse existing patterns and separate concerns
 2. Delegate to the documenter subagent when introducing new structure (commands, handlers, packages, etc.)
