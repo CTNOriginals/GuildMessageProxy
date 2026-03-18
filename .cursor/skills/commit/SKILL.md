@@ -5,7 +5,7 @@ description: Stage and commit changes using conventional commits format. Use whe
 
 # Commit
 
-Stage and commit changes using conventional commits format. See `.cursor/rules/git-commit.mdc` for message format details.
+Stage and commit changes using conventional commits format. Apply the `conventional-commits` skill for message format details.
 
 ## Grouping
 
