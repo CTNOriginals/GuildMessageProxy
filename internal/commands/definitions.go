@@ -12,14 +12,6 @@ type SCommandDef struct {
 // MCommandDefinitions maps slash command types to their definitions.
 type MCommandDefinitions map[TSlashCommand]SCommandDef
 
-// SButtonDef defines a button interaction handler.
-type SButtonDef struct {
-	Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
-}
-
-// MButtonDefinitions maps button types to their definitions.
-type MButtonDefinitions map[TButton]SButtonDef
-
 // SSelectMenuDef defines a select menu interaction handler.
 type SSelectMenuDef struct {
 	Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
