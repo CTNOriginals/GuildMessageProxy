@@ -1,8 +1,10 @@
-# Roadmap Documentation
+# Roadmap Documentation (Historical)
 
-This folder contains planning and design documents for GuildMessageProxy.
+This folder contains historical design documents from the **MVP phase** of GuildMessageProxy development. These documents are retained for reference and context about early design decisions.
 
-## Document Index
+> **For current project status and active backlog, see [PROJECT_STATUS.md](../PROJECT_STATUS.md).**
+
+## Document Index (Reference)
 
 | Document | Purpose | Status |
 |----------|---------|--------|
@@ -15,6 +17,7 @@ This folder contains planning and design documents for GuildMessageProxy.
 
 ## Navigation
 
+- **For current status and backlog: See [PROJECT_STATUS.md](../PROJECT_STATUS.md)**
 - For current implementation: See [ARCHITECTURE.md](../ARCHITECTURE.md)
 - For user-facing docs: See [README.md](../../README.md)
 - For deployment: See [DEPLOYMENT.md](../DEPLOYMENT.md)
