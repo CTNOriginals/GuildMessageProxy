@@ -10,6 +10,8 @@
 | tester | Running tests, analyzing failures, fixing test issues |
 | verifier | Validating completed work, confirming tests pass |
 | reviewer | Reviewing PRs, changes, or when the user asks for a code review |
+| quality-assurance | New features introduced; validating requirement completeness and release readiness |
+| user-experience | Assessing feature usability through hands-on simulation and user workflow testing |
 
 ## Shared Instructions
 
