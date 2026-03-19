@@ -14,7 +14,6 @@ This folder contains documentation to help AI agents and developers navigate the
 | [TEMPLATES.md](./TEMPLATES.md)       | File templates, patterns for adding new features              |
 | [GLOSSARY.md](./GLOSSARY.md)         | Terms and jargon (proxy message, compose, ephemeral, etc)     |
 | [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Common issues, error codes, debugging, permissions           |
-| [roadmap/](./roadmap/)               | Historical planning docs (MVP design, infrastructure notes) |
 | [.cursor/agents/INDEX.md](../.cursor/agents/INDEX.md) | Subagent index - when to use documenter, developer, reviewer, etc |
 
 

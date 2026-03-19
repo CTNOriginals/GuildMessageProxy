@@ -137,7 +137,7 @@ type SModalSubmitDef struct { Execute func(...) }
 type MModalSubmitDefinitions map[TModalSubmit]SModalSubmitDef
 ```
 
-The bot identifies an interaction by its type and looks up the definition in the appropriate map. See [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md) for the full design and [GLOSSARY.md](./GLOSSARY.md) for term definitions.
+The bot identifies an interaction by its type and looks up the definition in the appropriate map. See [ROUTE_MAP.md](./ROUTE_MAP.md#interaction-routing) for routing details and [GLOSSARY.md](./GLOSSARY.md) for term definitions.
 
 ## Error Handling
 
@@ -167,13 +167,13 @@ The `internal/events` package handles errors by:
 | Permanent resource | 10003 (unknown channel), 10008 (unknown message) | Clear user message; handlers treat unknown guild/404 appropriately |
 | Validation | 50035 (invalid form body) | Field-specific feedback to user |
 
-See [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md#error-handling) for the full handling flow.
+See [internal/events/error.go](../internal/events/error.go) for implementation details and [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common errors.
 
 ## Guild Lifecycle and Storage
 
 - **GuildCreate**: Store guild metadata (id, name), per-guild config (allowed roles, default channel, logging channel). Use upsert; GuildCreate can fire on re-availability (e.g. bot comes back online).
 - **GuildDelete**: Remove or soft-delete guild config and proxy metadata. Document policy: either delete, soft-delete, or retention. Orphaned messages fail on edit; handlers treat unknown guild/404 appropriately.
-- **Cleanup policy**: Choose one: hard delete on leave, soft-delete with retention window, or retain for audit. Document in `internal/storage` and `docs/roadmap/infrastructure.md`.
+- **Cleanup policy**: Choose one: hard delete on leave, soft-delete with retention window, or retain for audit. Document in `internal/storage`.
 
 ## Discord Integration
 

@@ -82,7 +82,7 @@ Working Discord bot with core compose functionality:
 
 **MVP Completed: March 2026**
 
-Core compose functionality implemented with preview system, webhook posting, and edit proposals. Infrastructure includes event handlers, command sync, interaction routing, and structured logging. See `docs/roadmap/` for detailed design documents from this phase.
+Core compose functionality implemented with preview system, webhook posting, and edit proposals. Infrastructure includes event handlers, command sync, interaction routing, and structured logging.
 
 ---
 
@@ -90,4 +90,3 @@ Core compose functionality implemented with preview system, webhook posting, and
 
 - Technical details: [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Implementation patterns: [TEMPLATES.md](./TEMPLATES.md)
-- Historical planning: [roadmap/](./roadmap/)

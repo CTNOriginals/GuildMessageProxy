@@ -91,7 +91,7 @@ The bot looks up the interaction by its type in the appropriate map and invokes 
 5. **Message/User context commands**: InteractionCreate reads `ApplicationCommandData().Name`, maps to `TMessageCommand` or `TUserCommand`, looks up in the appropriate map, runs execute.
 6. **Autocomplete**: Handled within slash command handler or shared handler keyed by command+option.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) and [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md) for the full type system. See [PROJECT_MAP.md](./PROJECT_MAP.md) for event handler file locations.
+See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) for the full type system. See [PROJECT_MAP.md](./PROJECT_MAP.md) for event handler file locations.
 
 ## MVP Restrictions
 
@@ -107,7 +107,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md#interaction-type-system) and [docs/roadm
 
 ## Post-MVP Infrastructure
 
-Planned extensions (see [docs/roadmap/infrastructure.md](./roadmap/infrastructure.md#post-mvp-infrastructure)):
+Planned extensions (see [PROJECT_STATUS.md](./PROJECT_STATUS.md) for backlog):
 
 - **Voting**: Reaction handlers (`MESSAGE_REACTION_ADD`), approval buttons (`TButton`), state machine (Draft -> Pending -> Approved/Rejected), vote storage
 - **Admin/Config**: Uses `TSlashCommand`; no new interaction types

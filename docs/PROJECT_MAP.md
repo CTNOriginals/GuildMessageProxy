@@ -49,12 +49,6 @@ GuildMessageProxy/
 |   |-- GLOSSARY.md              [EXISTS] Terms and jargon
 |   |-- DEPLOYMENT.md            [EXISTS] Deployment guide
 |   |-- TROUBLESHOOTING.md      [EXISTS] Troubleshooting guide
-|   |-- roadmap/
-|   |   |-- overview.md          [EXISTS] Project purpose
-|   |   |-- mvp-feature-plan.md   [EXISTS] MVP flows
-|   |   |-- architecture-notes.md [EXISTS] Go layout notes
-|   |   |-- infrastructure.md     [EXISTS] Full infrastructure design (types, naming, guild lifecycle, errors)
-|   |   |-- permissions-and-safety-notes.md [EXISTS] Safety
 |
 |-- .env.example                 [EXISTS] Env var template
 |-- .gitignore                   [EXISTS]
@@ -80,7 +74,6 @@ GuildMessageProxy/
 | Reusable logic (preview, post, permissions) | `internal/handlers/` |
 | Persistence (proxy metadata, guild config) | `internal/storage/` |
 | Structured logging implementation | `internal/logging/*.go` |
-| Planning and design docs | `docs/roadmap/` |
 | Agent navigation docs | `docs/` (this folder) |
 
 ## What Exists vs Planned
@@ -93,7 +86,7 @@ GuildMessageProxy/
 | `internal/storage/` | Exists - in-memory with proxy message support |
 | `internal/events/` | Exists - interaction routing with button support |
 | `internal/logging/` | Exists - structured logging with levels |
-| `docs/` | Exists - agent docs and roadmap |
+| `docs/` | Exists - agent navigation docs |
 
 ## Key Files to Know
 
