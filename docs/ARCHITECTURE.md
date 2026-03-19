@@ -29,7 +29,7 @@ Command-first layout. Each top-level category and its subcommands live together.
 
 | File | Contents |
 |------|----------|
-| `compose.go` | [EXISTS] `/compose` group + subcommands (create, post, propose). Handler/execute functions. Command-specific validation. |
+| `compose.go` | [EXISTS] `/compose` group + subcommands (draft, send, edit). Handler/execute functions. Command-specific validation. Aliases create, post, propose maintained for backward compatibility. |
 | `registry.go` | Command definitions and sync logic. On startup: fetch existing commands, compare with desired definitions, bulk overwrite only when different. Called from main. |
 | `admin.go`, `config.go` | Future command groups. Same pattern as compose. |
 
@@ -162,10 +162,10 @@ The `internal/events` package handles errors by:
 
 | Category | Example Codes | Handling |
 |----------|---------------|----------|
-| Transient | 429 (rate limit), 502 (server error) | Retry with backoff |
-| Permanent auth | 40001 (unauthorized) | No retry; log and notify |
-| Permanent resource | 10003 (unknown channel), 10008 (unknown message) | Clear user message; handlers treat unknown guild/404 appropriately |
-| Validation | 50035 (invalid form body) | Field-specific feedback to user |
+| Transient | 429 (rate limit), 502 (server error), 503 (service unavailable) | Retry with backoff |
+| Permanent auth | 40001 (unauthorized), 40004 (disallowed intent) | No retry; log and notify |
+| Permanent resource | 10003 (unknown channel), 10008 (unknown message), 10013 (unknown user) | Clear user message; handlers treat unknown guild/404 appropriately |
+| Validation | 50035 (invalid form body), 50016 (too many attachments) | Field-specific feedback to user |
 
 See [internal/events/error.go](../internal/events/error.go) for implementation details and [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common errors.
 

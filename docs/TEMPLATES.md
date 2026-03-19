@@ -37,35 +37,44 @@ session.AddHandler(events.HandleGuildCreate)
 ### Template: Slash Command Type and Definition
 
 ```go
-// In types or commands package
+// In types.go - add const to TSlashCommand block
 const (
-	ComposeCreate TSlashCommand = "compose-create"
-	ComposeEdit   TSlashCommand = "compose-edit"
+	ComposeDraft TSlashCommand = "compose-draft"
+	ComposeEdit  TSlashCommand = "compose-edit"
 	// Add new: MyNewCommand TSlashCommand = "my-new-command"
 )
 
-// In CommandDefinitions map
-var CommandDefinitions MCommandDefinitions = MCommandDefinitions{
-	ComposeCreate: {Definition: ComposeCreateDefinition, Execute: ComposeCreateExecute},
-	MyNewCommand:  {Definition: MyNewCommandDefinition, Execute: MyNewCommandExecute},
-	// ...
+// In command file (e.g., compose.go) - define command definition
+var MyNewCommandDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
+	Name:        string(MyNewCommand),
+	Description: "Description of what this command does",
+	Options:     []*discordgo.ApplicationCommandOption{
+		// ... command options
+	},
+}
+
+// In command file's init() function - register to CommandDefinitions
+CommandDefinitions[MyNewCommand] = SCommandDef{
+	Definition:   MyNewCommandDefinition,
+	Execute:      MyNewCommandExecute,
+	Autocomplete: nil, // or autocomplete function if needed
 }
 ```
 
 ## Adding a New Button Type
 
 1. Add a new const to the `TButton` const block with the `custom_id` value.
-2. Follow the convention: `button_<context>_<action>` (e.g. `button_compose-create_post`).
+2. Follow the convention: `button_<context>_<action>` (e.g. `button_compose_preview_post`).
 3. Add the button handler/execute logic.
-4. Add an entry to the button definitions map (if one exists) or wire the handler in InteractionCreate.
+4. Add an entry to `ButtonDefinitions` map in the command file's `init()` function.
 
 ### Template: Button Type
 
 ```go
 const (
-	ComposeCreatePost   TButton = "button_compose-create_post"
-	ComposeCreateCancel TButton = "button_compose-create_cancel"
-	// Add new: MyContextAction TButton = "button_my-context_action"
+	ButtonComposePreviewPost   TButton = "button_compose_preview_post"
+	ButtonComposePreviewCancel TButton = "button_compose_preview_cancel"
+	// Add new: ButtonContextAction TButton = "button_context_action"
 )
 ```
 
@@ -146,6 +155,50 @@ When adding a new interaction type that needs its own map (e.g. MSelectMenuDefin
 - [ ] Add routing branch in InteractionCreate
 - [ ] Update ARCHITECTURE.md and PROJECT_MAP.md
 
+### Template: Definition Structs
+
+Located in `internal/commands/definitions.go`:
+
+```go
+package commands
+
+import "github.com/bwmarrin/discordgo"
+
+// SCommandDef defines a slash, message, or user context command.
+type SCommandDef struct {
+	Definition   *discordgo.ApplicationCommand
+	Execute      func(s *discordgo.Session, i *discordgo.InteractionCreate)
+	Autocomplete func(s *discordgo.Session, i *discordgo.InteractionCreate) // optional
+}
+
+// MCommandDefinitions maps slash command types to their definitions.
+type MCommandDefinitions map[TSlashCommand]SCommandDef
+
+// SButtonDef defines a button handler.
+type SButtonDef struct {
+	Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
+}
+
+// MButtonDefinitions maps button custom IDs to their handlers.
+type MButtonDefinitions map[TButton]SButtonDef
+
+// SSelectMenuDef defines a select menu interaction handler.
+type SSelectMenuDef struct {
+	Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
+}
+
+// MSelectMenuDefinitions maps select menu types to their definitions.
+type MSelectMenuDefinitions map[TSelectMenu]SSelectMenuDef
+
+// SModalSubmitDef defines a modal submit interaction handler.
+type SModalSubmitDef struct {
+	Execute func(s *discordgo.Session, i *discordgo.InteractionCreate)
+}
+
+// MModalSubmitDefinitions maps modal submit types to their definitions.
+type MModalSubmitDefinitions map[TModalSubmit]SModalSubmitDef
+```
+
 ## Adding a New Command Group
 
 1. Create `internal/commands/<group>.go` (e.g. `admin.go`).
@@ -186,20 +239,56 @@ func HandleGroupName(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 1. Create or edit a file in `internal/handlers/`.
 2. Keep handlers pure where possible (inputs in, outputs out).
-3. Accept `*discordgo.Session` and interaction/context as needed.
+3. Accept `DiscordSession` interface for testability, or `*discordgo.Session` for simple cases.
+4. Command handlers use signature `func(*discordgo.Session, *discordgo.InteractionCreate)`.
 
 ### Template: Handler Function
 
 ```go
 package handlers
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"github.com/bwmarrin/discordgo"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
+)
 
 // DoSomething performs X. Used by commands A and B.
-func DoSomething(s *discordgo.Session, guildID string, input string) (*discordgo.MessageSend, error) {
+// Uses DiscordSession interface for testability.
+func DoSomething(s DiscordSession, guildID string, input string, store storage.Store) (*discordgo.Message, error) {
 	// Validate, build, return
-	return &discordgo.MessageSend{Content: input}, nil
+	return &discordgo.Message{Content: input}, nil
 }
+```
+
+### Template: Command/Button Handler
+
+```go
+package commands
+
+import "github.com/bwmarrin/discordgo"
+
+// MyCommandExecute handles the slash command or button interaction.
+// This signature matches what SCommandDef and SButtonDef expect.
+func MyCommandExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Extract data from interaction
+	var data discordgo.ApplicationCommandInteractionData = i.ApplicationCommandData()
+	// ... handle command
+}
+```
+
+### Template: Using DiscordSession Interface
+
+```go
+package handlers
+
+import "github.com/bwmarrin/discordgo"
+
+// DiscordSession interface allows mocking in tests.
+// Use handlers.NewDiscordSession(s) to wrap *discordgo.Session.
+var session DiscordSession = NewDiscordSession(s)
+
+// Now pass 'session' to handler functions for testability.
+result := SomeHandler(session, guildID, content)
 ```
 
 ## Adding Storage
@@ -213,17 +302,39 @@ func DoSomething(s *discordgo.Session, guildID string, input string) (*discordgo
 ```go
 package storage
 
+import "time"
+
+// ProxyMessage stores metadata about a proxied message for edit tracking.
 type ProxyMessage struct {
-	GuildID   string
-	ChannelID string
-	MessageID string
-	OwnerID   string
-	// ...
+	GuildID      string     // Discord guild ID where message was posted
+	ChannelID    string     // Discord channel ID where message was posted
+	MessageID    string     // Discord message ID of the proxied message
+	OwnerID      string     // Discord user ID of the message author
+	Content      string     // Message text for edit reference and history
+	CreatedAt    time.Time  // Timestamp when message was first created
+	LastEditedAt *time.Time // Timestamp of last edit, nil if never edited
+	LastEditedBy string     // Discord user ID of last editor, empty if never edited
+	WebhookID    string     // Webhook ID used for editing the proxied message
+	WebhookToken string     // Webhook token used for editing the proxied message
 }
 
+// Store defines the interface for persistence operations.
+// Allows swapping implementations (in-memory for testing, SQLite for production).
 type Store interface {
-	SaveProxyMessage(m ProxyMessage) error
+	// Guild operations
+	SaveGuild(guildID, name string) error
+	GetGuild(guildID string) (*Guild, error)
+	DeleteGuild(guildID string) error
+
+	// Guild config operations
+	SaveGuildConfig(config GuildConfig) error
+	GetGuildConfig(guildID string) (*GuildConfig, error)
+
+	// Proxy message operations
+	SaveProxyMessage(msg ProxyMessage) error
 	GetProxyMessage(guildID, messageID string) (*ProxyMessage, error)
+	UpdateProxyMessage(msg ProxyMessage) error
+	DeleteProxyMessage(guildID, messageID string) error
 }
 ```
 
