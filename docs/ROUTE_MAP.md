@@ -10,21 +10,24 @@ Commands use subcommands under a top-level group. The main category is `/compose
 
 | Route | Purpose |
 |-------|---------|
-| `/compose create` | Start a new draft with initial content |
-| `/compose propose` | Submit a proposed change to an existing proxied message |
-| `/compose post` | Confirm and post the current draft |
+| `/compose-draft` | Start a new draft with initial content |
+| `/compose-edit` | Submit a proposed change to an existing proxied message |
+| `/compose-send` | Confirm and post the current draft |
+| `/compose-help` | Show help for compose commands |
+| `/message-delete` | Delete a proxied message |
+| `/config-role`, `/config-channel`, `/config-restrict`, `/config-allow`, `/config-defaults` | Guild configuration commands |
 
 All MVP compose commands are fully implemented.
 
 ## Flow: Compose -> Preview -> Post (Implemented)
 
 ```
-User: /compose create (content)
+User: /compose-draft (content)
   -> handlers: validate content
   -> handlers: render preview
   -> Bot: ephemeral response with preview + [Post] [Cancel] buttons
 
-User: clicks Post (or /compose post)
+User: clicks Post (or /compose-send)
   -> handlers: post to target channel
   -> storage: save metadata (guild, channel, msg ID, owner, flags)
 
@@ -37,7 +40,7 @@ User: clicks Cancel
 ## Flow: Basic Edit (Implemented)
 
 ```
-User: /compose propose (target message, new content)
+User: /compose-edit (target message, new content)
   -> handlers: verify requester is original owner (MVP)
   -> handlers: render edited preview
   -> Bot: ephemeral preview + [Apply] [Cancel] buttons
@@ -53,12 +56,31 @@ User: clicks Apply
 
 | Flow Step | Handler | Called From |
 |-----------|---------|-------------|
-| Validate content | `handlers.ValidateContent` | compose create, compose propose |
+| Validate content | `handlers.ValidateContent` | compose-draft, compose-edit |
 | Validate permissions | `handlers.CanUseCompose` | all compose subcommands |
-| Render preview | `handlers.RenderPreviewResponse` | compose create, compose propose |
-| Post message | `handlers.PostProxiedMessage` | compose post, button handler |
+| Render preview | `handlers.RenderPreviewResponse` | compose-draft, compose-edit |
+| Post message | `handlers.PostProxiedMessage` | compose-send, button handler |
 | Edit message | `handlers.EditProxiedMessage` | edit apply button handler |
-| Check edit permission | `handlers.ValidateEditPermission` | compose propose |
+| Check edit permission | `handlers.ValidateEditPermission` | compose-edit |
+| Get proxied message | `handlers.GetProxiedMessage` | message-delete, compose-edit |
+| Check message ownership | `handlers.IsMessageOwner` | message-delete |
+
+## Config Command Flows
+
+### Config Role Flow
+```
+User: /config-role <role>
+  -> handlers: check ManageGuild permission
+  -> storage: update guild config allowed_roles
+  -> Bot: confirm role added
+```
+
+### Config Defaults Flow
+```
+User: /config-defaults
+  -> storage: fetch guild config
+  -> Bot: display embed with current settings
+```
 
 ## Interaction Routing
 

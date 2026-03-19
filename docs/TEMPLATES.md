@@ -297,6 +297,8 @@ result := SomeHandler(session, guildID, content)
 2. Implement in-memory version in `internal/storage/memory.go`.
 3. Use interface in handlers so implementation can be swapped later.
 
+**Thread safety:** In-memory storage shared across handlers must use mutex protection. See ARCHITECTURE.md "Concurrency and Thread Safety" section for the pattern used in compose.go's draftStore.
+
 ### Template: Storage Interface
 
 ```go

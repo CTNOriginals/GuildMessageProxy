@@ -11,6 +11,7 @@ For project structure, see [PROJECT_MAP.md](./PROJECT_MAP.md). For code architec
 | [Go](https://golang.org/dl/) | 1.25+ | Build and run the bot |
 | [Git](https://git-scm.com/) | Any | Clone the repository |
 | Discord account | - | Create bot application |
+| SQLite | 3.x | Embedded database (bundled with Go) |
 
 ## Installation
 
@@ -55,6 +56,12 @@ make run
 
 # Run with command-line flags (overrides .env)
 make run args="-t YOUR_TOKEN"
+
+# Run with custom database path
+make run args="--db=/path/to/database.db"
+
+# Run with in-memory storage (for testing)
+make run args="--memory"
 ```
 
 ## Environment Variable Reference
@@ -63,6 +70,7 @@ make run args="-t YOUR_TOKEN"
 |----------|----------|-------------|
 | TOKEN | Yes | Discord bot token from the Developer Portal |
 | CLIENT_ID | Yes | Discord application client ID |
+| DATABASE_PATH | No | Path to SQLite database file (default: guildmessageproxy.db) |
 | DEV_GUILD_ID | No | Development guild ID for command registration |
 | DEV_CHANNEL_LOG_ID | No | Channel ID for bot logs |
 | DEV_CHANNEL_ERROR_ID | No | Channel ID for error notifications |
@@ -140,23 +148,37 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md#command-registration-startup-sync) for t
 
 ## Database Setup
 
-### Current State: In-Memory Storage
+### Current State: SQLite Storage
 
-The MVP uses in-memory storage for proxy message metadata. This means:
+The bot uses SQLite for persistent storage of proxy message metadata by default.
 
-- **No persistence**: Data is lost when the bot restarts
-- **No setup required**: Works out of the box
-- **Suitable for**: Testing, small deployments, development
+**Default database path**: `guildmessageproxy.db` (created in working directory)
 
-### Future: SQLite Persistence
+Features:
+- **Persistent**: Data retained across bot restarts
+- **Automatic setup**: Database initialized on first run with automatic migrations
+- **Zero configuration**: Works out of the box
 
-Persistent storage is planned for a future release using SQLite. This will:
+### Command-Line Flags
 
-- Retain proxy message metadata across restarts
-- Enable audit logging and message history
-- Support the `/audit` and `/stats` command groups
+| Flag | Description | Use Case |
+|------|-------------|----------|
+| `--db=<path>` | Custom database file path | Multiple instances, specific storage location |
+| `--memory` | Use in-memory storage (no persistence) | Testing, development, ephemeral deployments |
 
-No database configuration is currently required.
+### In-Memory Testing Mode
+
+For testing or development scenarios where persistence is not needed:
+
+```bash
+# Run with in-memory storage (data lost on restart)
+make run args="--memory"
+```
+
+In-memory mode:
+- Data is lost when the bot restarts
+- Useful for testing, CI/CD, or development
+- No database file created on disk
 
 See [PROJECT_MAP.md](./PROJECT_MAP.md#directory-tree-current--planned) for storage implementation details.
 
@@ -198,6 +220,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md#error-handling) for error categorization
 | Commands not appearing | Not registered | Wait 1 hour (global) or use `--guild` |
 | Permission denied | OAuth2 scopes | Re-invite with `bot` and `applications.commands` |
 | Cannot post messages | Missing permissions | Grant Send Messages, Manage Webhooks |
+| Database permission denied | Insufficient file permissions | Ensure write access to database directory or run with `--memory` |
 
 ## Production Checklist
 

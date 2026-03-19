@@ -85,8 +85,8 @@ Persistence for:
 - Proxy message metadata (guild, channel, message ID, owner, flags)
 - Minimal per-guild config for MVP
 
-- Start with in-memory implementation.
-- Design interfaces so storage can be swapped for a database later.
+- SQLite storage for production use.
+- In-memory implementation available for testing (configurable via `STORAGE_TYPE` env var).
 
 ## Draft Management
 

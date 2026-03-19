@@ -23,7 +23,9 @@ GuildMessageProxy/
 |   |   |-- compose.go            [EXISTS] /compose group + subcommands
 |   |   |-- definitions.go        [EXISTS] Command and button definitions
 |   |   |-- registry.go           [EXISTS] Command definitions + startup sync (fetch, diff, bulk overwrite)
-|   |   |-- (admin.go, config.go) [FUTURE] Other command groups
+|   |   |-- config.go             [EXISTS] Guild configuration commands
+|   |   |-- message.go            [EXISTS] Message deletion command
+|   |   |-- help.go               [EXISTS] Compose help command
 |   |
 |   |-- handlers/
 |   |   |-- preview.go           [EXISTS] Render preview message payload
@@ -34,7 +36,11 @@ GuildMessageProxy/
 |   |
 |   |-- storage/
 |   |   |-- memory.go            [EXISTS] In-memory proxy metadata
+|   |   |-- sqlite.go            [EXISTS] SQLite persistence implementation
 |   |   |-- interface.go         [EXISTS] Storage interface for swap later
+|
+|   |-- health/
+|   |   |-- health.go            [EXISTS] Health check server for monitoring
 |
 |   |-- logging/
 |   |   |-- logging.go           [EXISTS] Structured logging implementation
@@ -74,6 +80,7 @@ GuildMessageProxy/
 | Reusable logic (preview, post, permissions) | `internal/handlers/` |
 | Persistence (proxy metadata, guild config) | `internal/storage/` |
 | Structured logging implementation | `internal/logging/*.go` |
+| Health check server | `internal/health/health.go` |
 | Agent navigation docs | `docs/` (this folder) |
 
 ## What Exists vs Planned
@@ -86,6 +93,11 @@ GuildMessageProxy/
 | `internal/storage/` | Exists - in-memory with proxy message support |
 | `internal/events/` | Exists - interaction routing with button support |
 | `internal/logging/` | Exists - structured logging with levels |
+| `internal/health/` | Exists - health check server |
+| `internal/commands/config.go` | Exists - guild configuration |
+| `internal/commands/message.go` | Exists - message deletion |
+| `internal/commands/help.go` | Exists - compose help |
+| `internal/storage/sqlite.go` | Exists - SQLite persistence |
 | `docs/` | Exists - agent navigation docs |
 
 ## Key Files to Know
@@ -93,6 +105,8 @@ GuildMessageProxy/
 - **main.go** - Thin entry point. Load config, init session, wire handlers, graceful shutdown.
 - **registry.go** - Command definitions and startup sync: fetch existing, diff against desired, bulk overwrite only when changed. Supports `--guild` (dev) or `--global` (prod).
 - **compose.go** - Main user-facing command group for compose/create/propose/post.
+- **config.go** - Guild configuration commands.
+- **message.go** - Message management commands.
 - **handlers/** - Shared logic used by multiple commands. Keep commands thin.
 - **logging/** - Structured logging with configurable levels and output formatting.
 

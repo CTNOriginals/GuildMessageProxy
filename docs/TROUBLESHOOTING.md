@@ -61,9 +61,29 @@ Use Discord's bot permission calculator for invite URL.
 
 ## Database Troubleshooting
 
-- Current storage is in-memory (resets on restart)
-- No database setup required currently
-- Lost drafts on restart is expected behavior
+- Default storage is SQLite (persistent across restarts)
+- Database file: guildmessageproxy.db (or use DATABASE_PATH env var)
+- Use --memory flag for in-memory testing mode (resets on restart)
+- No database setup required - SQLite works out of the box
+
+### Database Permission Issues
+
+- If SQLite fails to write: Check file permissions on guildmessageproxy.db
+- Run with --memory flag to bypass database issues: `make run args="--memory"`
+
+
+## Permission Error Reference
+
+When using compose commands, you may encounter these permission-related errors:
+
+| Error Message | Cause | Solution |
+| ------------- | ------- | ---------- |
+| Cannot access this channel. The bot may lack permissions, or the channel no longer exists. Try again or contact a server admin. | Bot cannot access the channel | Verify the bot has View Channel permission, or the channel still exists |
+| Cannot verify your permissions in this channel. Try again or use a different channel. | Failed to retrieve user's channel permissions | Try the command again, or use a different channel where you have permissions |
+| You need 'Send Messages' permission in this channel to use this command. | User lacks Send Messages permission | Ask a server admin to grant you Send Messages permission in this channel |
+| This command requires an allowed role. Ask a server admin which roles can use compose commands. | Guild has role restrictions configured | Contact a server admin to learn which roles are allowed, or request assignment to an allowed role |
+| This channel is restricted. Use compose commands in an allowed channel instead. | Channel is in the restricted list | Use a different channel that is not restricted for compose commands |
+| This channel is not allowed for compose commands. Use a permitted channel or ask a server admin to add this channel. | Channel whitelist is active and this channel is not included | Use a channel in the allowed list, or ask a server admin to add this channel to the whitelist |
 
 
 ## Discord API Error Reference
