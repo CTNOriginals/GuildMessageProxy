@@ -1,7 +1,11 @@
+// Package handlers provides message posting and URL extraction utilities for the GuildMessageProxy bot.
+// It contains functions for posting proxied messages via webhooks, formatting content with attribution,
+// and extracting Discord IDs from message URLs.
 package handlers
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -10,15 +14,29 @@ import (
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
 
-// PostResult contains the result of posting a proxied message
+// PostResult contains the result of posting a proxied message.
 type PostResult struct {
-	Success   bool
+	// Success indicates whether the message was posted successfully.
+	Success bool
+	// MessageID is the Discord ID of the posted message (only valid when Success is true).
 	MessageID string
-	Error     string
+	// Error contains a human-readable error message when Success is false.
+	Error string
 }
 
-// PostProxiedMessage posts content to a channel via webhook.
-// Creates webhook if needed, stores metadata, returns result.
+// PostProxiedMessage posts content to a Discord channel via webhook, creating the webhook if necessary.
+// It triggers a typing indicator, retrieves or creates a webhook for the channel, executes the webhook
+// to post the message, and stores proxy metadata in the provided store.
+//
+// Parameters:
+//   - s: Discord session interface for API interactions
+//   - guildID: Discord guild (server) ID where the message will be posted
+//   - channelID: Discord channel ID where the message will be posted
+//   - content: Message content to post
+//   - ownerID: Discord user ID of the message owner (for attribution)
+//   - store: Storage interface for persisting proxy message metadata
+//
+// Returns a PostResult indicating success or failure, with MessageID on success or Error on failure.
 func PostProxiedMessage(s DiscordSession, guildID, channelID, content, ownerID string, store storage.Store) PostResult {
 	// Trigger typing indicator before webhook operations
 	var typingErr error = s.ChannelTyping(channelID)
@@ -39,7 +57,7 @@ func PostProxiedMessage(s DiscordSession, guildID, channelID, content, ownerID s
 		)
 		return PostResult{
 			Success: false,
-			Error:   "Failed to create webhook. Ensure the bot has Manage Webhooks permission in this channel.",
+			Error:   "Unable to post message. The bot needs 'Manage Webhooks' permission in this channel. Ask a server admin to check bot permissions.",
 		}
 	}
 
@@ -59,7 +77,7 @@ func PostProxiedMessage(s DiscordSession, guildID, channelID, content, ownerID s
 		)
 		return PostResult{
 			Success: false,
-			Error:   "Failed to post message. The webhook may have been deleted. Try again or contact an admin.",
+			Error:   "Failed to post message. The webhook may have been deleted or the channel permissions changed. Try again, or ask a server admin to check the bot's access.",
 		}
 	}
 
@@ -134,7 +152,8 @@ func getOrCreateWebhook(s DiscordSession, channelID string) (*discordgo.Webhook,
 	return createdWebhook, nil
 }
 
-// FormatProxiedContent adds attribution to proxied content
+// FormatProxiedContent adds attribution to proxied content, indicating who requested the message.
+// The attribution is prepended as italicized text followed by two newlines.
 func FormatProxiedContent(content string, requesterName string) string {
 	// MVP: Simple text attribution
 	// Future: Could use embeds or custom usernames via webhook
@@ -142,21 +161,67 @@ func FormatProxiedContent(content string, requesterName string) string {
 	return attribution + content
 }
 
-// ExtractMessageIDFromURL extracts message ID from a Discord message URL
-func ExtractMessageIDFromURL(url string) string {
-	// Discord message URLs: https://discord.com/channels/{guildID}/{channelID}/{messageID}
-	parts := strings.Split(url, "/")
-	if len(parts) >= 6 {
-		return parts[len(parts)-1]
+// ExtractMessageIDFromURL extracts the message ID from a Discord message URL.
+// It validates that the URL is from a Discord domain and follows the expected path format.
+//
+// Supported URL formats:
+//   - https://discord.com/channels/{guild_id}/{channel_id}/{message_id}
+//   - https://www.discord.com/channels/{guild_id}/{channel_id}/{message_id}
+//   - https://discordapp.com/channels/{guild_id}/{channel_id}/{message_id}
+//   - https://www.discordapp.com/channels/{guild_id}/{channel_id}/{message_id}
+//
+// Parameter:
+//   - urlStr: The Discord message URL to parse
+//
+// Returns the message ID string, or empty string if the URL is invalid or not a Discord URL.
+func ExtractMessageIDFromURL(urlStr string) string {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return ""
 	}
-	return ""
+
+	// Validate Discord domain
+	host := strings.ToLower(parsedURL.Host)
+	if host != "discord.com" && host != "www.discord.com" &&
+		host != "discordapp.com" && host != "www.discordapp.com" {
+		return ""
+	}
+
+	// Validate path pattern: /channels/{guild}/{channel}/{message}
+	parts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	if len(parts) != 4 || parts[0] != "channels" {
+		return ""
+	}
+
+	return parts[3]
 }
 
-// ExtractIDsFromURL extracts guild, channel, and message IDs from a Discord message URL
-func ExtractIDsFromURL(url string) (guildID, channelID, messageID string) {
-	parts := strings.Split(url, "/")
-	if len(parts) >= 6 {
-		return parts[len(parts)-3], parts[len(parts)-2], parts[len(parts)-1]
+// ExtractIDsFromURL extracts the guild ID, channel ID, and message ID from a Discord message URL.
+// It validates that the URL is from a Discord domain and follows the /channels/{guild}/{channel}/{message} path format.
+//
+// Parameter:
+//   - urlStr: The Discord message URL to parse
+//
+// Returns three strings in order: guildID, channelID, and messageID.
+// Returns empty strings for all values if the URL is invalid or not a recognized Discord URL.
+func ExtractIDsFromURL(urlStr string) (guildID, channelID, messageID string) {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return "", "", ""
 	}
-	return "", "", ""
+
+	// Validate Discord domain
+	host := strings.ToLower(parsedURL.Host)
+	if host != "discord.com" && host != "www.discord.com" &&
+		host != "discordapp.com" && host != "www.discordapp.com" {
+		return "", "", ""
+	}
+
+	// Validate path pattern: /channels/{guild}/{channel}/{message}
+	parts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	if len(parts) != 4 || parts[0] != "channels" {
+		return "", "", ""
+	}
+
+	return parts[1], parts[2], parts[3]
 }

@@ -1,3 +1,6 @@
+// Package events provides Discord event handlers for the GuildMessageProxy bot.
+// It handles incoming Discord interactions including slash commands, message components
+// (buttons and select menus), and modal submits.
 package events
 
 import (
@@ -11,7 +14,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// recoverPanic recovers from panics in handlers and logs them
+// recoverPanic recovers from panics in handlers and logs them with stack traces.
+// It should be used with defer at the start of each handler function to ensure
+// panics are caught and logged rather than crashing the application.
 func recoverPanic(context string) {
 	if r := recover(); r != nil {
 		logging.Error("panic recovered in handler",
@@ -22,7 +27,9 @@ func recoverPanic(context string) {
 	}
 }
 
-// getInteractionContext returns standard Discord context fields for an interaction
+// getInteractionContext returns standard Discord context fields for structured logging.
+// It extracts interaction ID, type, guild ID, channel ID, and user ID for inclusion
+// in log entries to aid debugging and traceability.
 func getInteractionContext(i *discordgo.InteractionCreate) []logging.Field {
 	var fields = []logging.Field{
 		logging.String("interaction_id", i.ID),
@@ -40,8 +47,9 @@ func getInteractionContext(i *discordgo.InteractionCreate) []logging.Field {
 	return fields
 }
 
-// HandleInteractionCreate routes all interaction types to their appropriate handlers.
-// Supports: slash commands, message components (buttons, select menus), and modal submits.
+// HandleInteractionCreate routes all Discord interaction types to their appropriate handlers.
+// It supports slash commands, message components (buttons and select menus), and modal submits.
+// Unknown interaction types are logged as warnings.
 func HandleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	defer recoverPanic("HandleInteractionCreate")
 	logging.Debug("interaction received", getInteractionContext(i)...)
@@ -61,9 +69,19 @@ func HandleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 }
 
-// handleSlashCommand routes slash commands by their name.
+// handleSlashCommand routes slash command interactions by their command name.
+// It looks up the command in CommandDefinitions and executes it if found.
+// Unknown commands are logged as warnings and the user is notified.
 func handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	defer recoverPanic("handleSlashCommand")
+
+	if i.Member == nil || i.Member.User == nil {
+		logging.Error("nil member or user in interaction",
+			logging.String("interaction_id", i.ID),
+		)
+		return
+	}
+
 	var data discordgo.ApplicationCommandInteractionData = i.ApplicationCommandData()
 	var cmdType commands.TSlashCommand = commands.TSlashCommand(data.Name)
 
@@ -92,13 +110,26 @@ func handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-// handleMessageComponent routes buttons and select menus by their CustomID.
+// handleMessageComponent routes message component interactions by their CustomID prefix.
+// It dispatches to handleButton for CustomIDs starting with "button_" prefix,
+// and to handleSelectMenu for CustomIDs starting with "select_" prefix.
+// This routing dispatch logic allows consistent naming conventions for component IDs.
 func handleMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	defer recoverPanic("handleMessageComponent")
+
+	if i.Member == nil || i.Member.User == nil {
+		logging.Error("nil member or user in interaction",
+			logging.String("interaction_id", i.ID),
+		)
+		return
+	}
+
 	var data discordgo.MessageComponentInteractionData = i.MessageComponentData()
 	var customID string = data.CustomID
 
-	// Route based on CustomID prefix
+	// Route based on CustomID prefix:
+	// - "button_" prefix routes to handleButton
+	// - "select_" prefix routes to handleSelectMenu
 	switch {
 	case strings.HasPrefix(customID, "button_"):
 		handleButton(s, i, customID)
@@ -115,6 +146,8 @@ func handleMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate
 }
 
 // handleButton routes button interactions by their CustomID.
+// It looks up the button in ButtonDefinitions and executes it if found.
+// Unknown buttons are logged as warnings and the user is notified.
 func handleButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
 	defer recoverPanic("handleButton")
 	var buttonType commands.TButton = commands.TButton(customID)
@@ -141,9 +174,19 @@ func handleButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID
 	}
 }
 
-// handleSelectMenu routes select menu interactions.
+// handleSelectMenu routes select menu interactions by their CustomID.
+// Currently a placeholder for future implementation as no select menu
+// definitions are registered yet in the MVP.
 func handleSelectMenu(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
 	defer recoverPanic("handleSelectMenu")
+
+	if i.Member == nil || i.Member.User == nil {
+		logging.Error("nil member or user in interaction",
+			logging.String("interaction_id", i.ID),
+		)
+		return
+	}
+
 	_ = commands.TSelectMenu(customID) // Will be used when select menu definitions are registered
 
 	// Placeholder: No select menu definitions registered yet in MVP
@@ -157,8 +200,18 @@ func handleSelectMenu(s *discordgo.Session, i *discordgo.InteractionCreate, cust
 }
 
 // handleModalSubmit routes modal submit interactions by their CustomID.
+// Currently a placeholder for future implementation as no modal submit
+// definitions are registered yet in the MVP.
 func handleModalSubmit(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	defer recoverPanic("handleModalSubmit")
+
+	if i.Member == nil || i.Member.User == nil {
+		logging.Error("nil member or user in interaction",
+			logging.String("interaction_id", i.ID),
+		)
+		return
+	}
+
 	var data discordgo.ModalSubmitInteractionData = i.ModalSubmitData()
 	var customID string = data.CustomID
 	var modalType commands.TModalSubmit = commands.TModalSubmit(customID)

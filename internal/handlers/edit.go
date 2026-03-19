@@ -8,20 +8,35 @@ import (
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
 
-// EditResult contains the result of editing a proxied message
+// EditResult contains the result of editing a proxied message.
 type EditResult struct {
+	// Success indicates whether the edit operation completed successfully.
 	Success bool
-	Error   string
+	// Error contains a human-readable error message if Success is false.
+	Error string
 }
 
-// EditProxiedMessage updates an existing proxied message via webhook.
-// Uses stored webhook ID and token from proxy metadata.
+// EditProxiedMessage updates an existing proxied message via webhook and persists metadata changes.
+//
+// Parameters:
+//   - s: Discord session for API operations
+//   - proxyMsg: The proxy message to edit, containing webhook credentials and message ID
+//   - newContent: The new message content to apply
+//   - editedBy: Discord user ID of the editor for audit tracking
+//   - store: Storage interface for persisting metadata updates
+//
+// Returns an EditResult indicating success or failure with an error message.
+//
+// The function edits the message via webhook using stored webhook ID and token.
+// Webhook messages must be edited through the webhook endpoint rather than
+// standard message edit APIs. After successful webhook edit, metadata including
+// content, LastEditedAt timestamp, and LastEditedBy are updated in storage.
 func EditProxiedMessage(s DiscordSession, proxyMsg *storage.ProxyMessage, newContent, editedBy string, store storage.Store) EditResult {
 	// Check if we have webhook credentials
 	if proxyMsg.WebhookID == "" || proxyMsg.WebhookToken == "" {
 		return EditResult{
 			Success: false,
-			Error:   "Cannot edit: webhook credentials not found for this message.",
+			Error:   "Cannot edit this message. The webhook used to post it is no longer available. This can happen if the webhook was deleted or the bot lost access. Contact a server admin if you need help.",
 		}
 	}
 
@@ -50,7 +65,7 @@ func EditProxiedMessage(s DiscordSession, proxyMsg *storage.ProxyMessage, newCon
 		)
 		return EditResult{
 			Success: false,
-			Error:   "Failed to edit message. It may have been deleted or is no longer editable.",
+			Error:   "Failed to edit message. It may have been deleted, or the bot no longer has access. Try again, or use `/compose edit` to start a fresh edit proposal.",
 		}
 	}
 
@@ -82,8 +97,17 @@ func EditProxiedMessage(s DiscordSession, proxyMsg *storage.ProxyMessage, newCon
 	}
 }
 
-// GetProxiedMessage retrieves proxy message metadata by message ID.
-// Convenience wrapper around store.GetProxyMessage.
+// GetProxiedMessage retrieves proxy message metadata by guild and message ID.
+//
+// Parameters:
+//   - store: Storage interface for database operations
+//   - guildID: Discord guild ID where the message was posted
+//   - messageID: Discord message ID of the proxied message
+//
+// Returns the ProxyMessage metadata or an error if not found.
+//
+// This is a convenience wrapper around store.GetProxyMessage that provides
+// a handler-level abstraction for retrieving proxied message records.
 func GetProxiedMessage(store storage.Store, guildID, messageID string) (*storage.ProxyMessage, error) {
 	return store.GetProxyMessage(guildID, messageID)
 }
