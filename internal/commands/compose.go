@@ -5,7 +5,6 @@ package commands
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -32,33 +31,21 @@ type Draft struct {
 	OriginalMsgID string    // for edit proposals: the original message ID
 }
 
-// draftStore is the in-memory map holding pending drafts (key: userID:guildID).
-var (
-	draftStore   = make(map[string]*Draft)
-	draftStoreMu sync.RWMutex
-)
+// DraftSvc is the global DraftService instance for managing draft storage.
+var DraftSvc *DraftService
+
+// init initializes the DraftService.
+func init() {
+	DraftSvc = NewDraftService()
+}
 
 // CleanupExpiredDrafts removes drafts older than their ExpiresAt time.
 // It returns the count of cleaned drafts.
 func CleanupExpiredDrafts() int {
-	var now = time.Now()
-	var cleaned int
-
-	draftStoreMu.Lock()
-	for key, draft := range draftStore {
-		if now.After(draft.ExpiresAt) {
-			delete(draftStore, key)
-			cleaned++
-		}
+	if DraftSvc == nil {
+		return 0
 	}
-	draftStoreMu.Unlock()
-
-	return cleaned
-}
-
-// getDraftKey generates a unique key for user's draft in a guild.
-func getDraftKey(userID, guildID string) string {
-	return userID + ":" + guildID
+	return DraftSvc.CleanupExpired()
 }
 
 // ComposeDraftDefinition is the command definition for compose-draft.
@@ -127,7 +114,6 @@ func ComposeDraftExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Store draft FIRST (before checking target channel permissions)
 	// This ensures user's work is preserved even if target channel permission fails
-	var draftKey string = getDraftKey(userID, guildID)
 	var now = time.Now()
 	var draft Draft = Draft{
 		UserID:        userID,
@@ -139,9 +125,7 @@ func ComposeDraftExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		IsEdit:        false,
 		OriginalMsgID: "",
 	}
-	draftStoreMu.Lock()
-	draftStore[draftKey] = &draft
-	draftStoreMu.Unlock()
+	DraftSvc.Save(&draft)
 
 	// Verify target channel permissions AFTER storing draft
 	// Draft is already saved, so user can retry with /compose draft if needed
@@ -248,7 +232,6 @@ func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, targetChannelID, userID, Store, i.Member.Roles)
 	if !targetPermResult.Allowed {
 		// Store draft so user can retry with /compose draft
-		var draftKey string = getDraftKey(userID, guildID)
 		var now = time.Now()
 		var draft Draft = Draft{
 			UserID:        userID,
@@ -260,9 +243,7 @@ func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			IsEdit:        false,
 			OriginalMsgID: "",
 		}
-		draftStoreMu.Lock()
-		draftStore[draftKey] = &draft
-		draftStoreMu.Unlock()
+		DraftSvc.Save(&draft)
 
 		logging.Info("Draft created on permission failure",
 			logging.String("user_id", userID),
@@ -396,7 +377,6 @@ func ComposeEditExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	// Store edit proposal as draft
-	var draftKey string = getDraftKey(userID, guildID)
 	var now = time.Now()
 	var draft Draft = Draft{
 		UserID:        userID,
@@ -408,9 +388,7 @@ func ComposeEditExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		IsEdit:        true,
 		OriginalMsgID: messageID,
 	}
-	draftStoreMu.Lock()
-	draftStore[draftKey] = &draft
-	draftStoreMu.Unlock()
+	DraftSvc.Save(&draft)
 
 	logging.Info("Edit draft created",
 		logging.String("user_id", userID),
@@ -448,28 +426,23 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	var guildID string = i.GuildID
 
 	// Retrieve draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
-		delete(draftStore, draftKey)
-		draftStoreMu.Unlock()
+		DraftSvc.Delete(userID, guildID)
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only post your own drafts. This draft was created by someone else.", nil)
 		return
 	}
@@ -484,7 +457,6 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	var postResult handlers.PostResult = handlers.PostProxiedMessage(session, draft.GuildID, draft.ChannelID, draft.Content, draft.UserID, Store)
 	if !postResult.Success {
 		// Do NOT delete draft on failure - keep it for retry
-		draftStoreMu.Unlock()
 		RespondWithRetry(s, i,
 			fmt.Sprintf(":x: **Failed to post message**\n\n%s\n\nYour draft is preserved. Try again?", postResult.Error),
 			string(ButtonComposeRetryPost),
@@ -493,8 +465,7 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 
 	// Delete draft on success
-	delete(draftStore, draftKey)
-	draftStoreMu.Unlock()
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Draft posted",
 		logging.String("user_id", userID),
@@ -516,12 +487,9 @@ func handleComposePreviewCancel(s *discordgo.Session, i *discordgo.InteractionCr
 	var guildID string = i.GuildID
 
 	// Look up draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.RLock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
-	draftStoreMu.RUnlock()
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
@@ -576,35 +544,29 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var guildID string = i.GuildID
 
 	// Retrieve draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose edit <message> <content>`.", nil)
 		return
 	}
 
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
-		delete(draftStore, draftKey)
-		draftStoreMu.Unlock()
+		DraftSvc.Delete(userID, guildID)
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only apply your own edit drafts. This draft was created by someone else.", nil)
 		return
 	}
 
 	// Verify this is an edit draft
 	if !draft.IsEdit {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "This draft is for a new message, not an edit. Use 'Post Message' instead.", nil)
 		return
 	}
@@ -614,7 +576,6 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var lookupErr error
 	proxyMsg, lookupErr = handlers.GetProxiedMessage(Store, guildID, draft.OriginalMsgID)
 	if lookupErr != nil || proxyMsg == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "Message not found. Only messages you created with /compose can be edited. Check the message ID or verify this message was posted by this bot.", lookupErr)
 		return
 	}
@@ -629,7 +590,6 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var editResult handlers.EditResult = handlers.EditProxiedMessage(session, proxyMsg, draft.Content, userID, Store)
 	if !editResult.Success {
 		// Keep draft on failure and show error with retry/cancel buttons
-		draftStoreMu.Unlock()
 		RespondWithRetry(s, i,
 			fmt.Sprintf(":x: **Failed to apply edit**\n\n%s\n\nYour edit draft is preserved. Try again?", editResult.Error),
 			string(ButtonEditRetryApply),
@@ -638,8 +598,7 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	}
 
 	// Delete draft on success
-	delete(draftStore, draftKey)
-	draftStoreMu.Unlock()
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Edit applied",
 		logging.String("user_id", userID),
@@ -664,12 +623,9 @@ func handleEditPreviewCancel(s *discordgo.Session, i *discordgo.InteractionCreat
 	var guildID string = i.GuildID
 
 	// Look up draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.RLock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
-	draftStoreMu.RUnlock()
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
 		respondWithError(s, i, "No pending edit draft found. Create one with `/compose edit`.", nil)
 		return
@@ -723,20 +679,16 @@ func handleConfirmDiscard(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var guildID string = i.GuildID
 
 	// Look up draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
 	// Delete draft
-	delete(draftStore, draftKey)
-	draftStoreMu.Unlock()
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Draft discarded",
 		logging.String("user_id", userID),
@@ -752,12 +704,9 @@ func handleKeepDraft(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var guildID string = i.GuildID
 
 	// Look up draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.RLock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
-	draftStoreMu.RUnlock()
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
@@ -881,35 +830,29 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var guildID string = i.GuildID
 
 	// Retrieve draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose edit <message> <content>`.", nil)
 		return
 	}
 
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
-		delete(draftStore, draftKey)
-		draftStoreMu.Unlock()
+		DraftSvc.Delete(userID, guildID)
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only edit your own drafts.", nil)
 		return
 	}
 
 	// Verify this is an edit draft
 	if !draft.IsEdit {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "This is not an edit draft. Use the Post button to send new messages.", nil)
 		return
 	}
@@ -919,7 +862,6 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var lookupErr error
 	proxyMsg, lookupErr = handlers.GetProxiedMessage(Store, guildID, draft.OriginalMsgID)
 	if lookupErr != nil || proxyMsg == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "Message not found. Only messages posted via /compose can be edited. Check the message ID or link.", lookupErr)
 		return
 	}
@@ -934,7 +876,6 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var editResult handlers.EditResult = handlers.EditProxiedMessage(session, proxyMsg, draft.Content, userID, Store)
 	if !editResult.Success {
 		// Keep draft on failure and show error with retry/cancel buttons again
-		draftStoreMu.Unlock()
 		RespondWithRetry(s, i,
 			fmt.Sprintf(":x: **Failed to apply edit**\n\n%s\n\nYour edit draft is preserved. Try again?", editResult.Error),
 			string(ButtonEditRetryApply),
@@ -943,8 +884,7 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	}
 
 	// Delete draft on success
-	delete(draftStore, draftKey)
-	draftStoreMu.Unlock()
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Edit applied on retry",
 		logging.String("user_id", userID),
@@ -968,17 +908,8 @@ func handleEditCancelAfterError(s *discordgo.Session, i *discordgo.InteractionCr
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 
-	// Look up draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
-	var draft *Draft
-	var exists bool
-	draft, exists = draftStore[draftKey]
-	if exists && draft != nil {
-		// Delete draft
-		delete(draftStore, draftKey)
-	}
-	draftStoreMu.Unlock()
+	// Delete draft if it exists
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Edit draft cancelled after error",
 		logging.String("user_id", userID),
@@ -995,35 +926,29 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 	var guildID string = i.GuildID
 
 	// Retrieve draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
-	draft, exists = draftStore[draftKey]
+	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "Draft no longer available. Create a new draft with `/compose draft`.", nil)
 		return
 	}
 
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
-		delete(draftStore, draftKey)
-		draftStoreMu.Unlock()
+		DraftSvc.Delete(userID, guildID)
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only post your own drafts.", nil)
 		return
 	}
 
 	// Verify this is not an edit draft
 	if draft.IsEdit {
-		draftStoreMu.Unlock()
 		respondWithError(s, i, "This is an edit draft. Use the Apply button to save edits.", nil)
 		return
 	}
@@ -1032,7 +957,6 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 	var postResult handlers.PostResult = handlers.PostProxiedMessage(session, draft.GuildID, draft.ChannelID, draft.Content, draft.UserID, Store)
 	if !postResult.Success {
 		// Keep draft on failure and show error with retry/cancel buttons again
-		draftStoreMu.Unlock()
 		RespondWithRetry(s, i,
 			fmt.Sprintf(":x: **Failed to post message**\n\n%s\n\nYour draft is preserved. Try again?", postResult.Error),
 			string(ButtonComposeRetryPost),
@@ -1041,8 +965,7 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 	}
 
 	// Delete draft on success
-	delete(draftStore, draftKey)
-	draftStoreMu.Unlock()
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Draft posted on retry",
 		logging.String("user_id", userID),
@@ -1063,21 +986,8 @@ func handleComposeCancelAfterError(s *discordgo.Session, i *discordgo.Interactio
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 
-	// Look up draft
-	var draftKey string = getDraftKey(userID, guildID)
-	draftStoreMu.Lock()
-	var draft *Draft
-	var exists bool
-	draft, exists = draftStore[draftKey]
-	if !exists || draft == nil {
-		draftStoreMu.Unlock()
-		respondToUser(s, i, ":wastebasket: **Draft discarded.** Use `/compose draft` to create a new draft.")
-		return
-	}
-
 	// Delete draft
-	delete(draftStore, draftKey)
-	draftStoreMu.Unlock()
+	DraftSvc.Delete(userID, guildID)
 
 	logging.Info("Draft discarded after error",
 		logging.String("user_id", userID),

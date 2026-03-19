@@ -118,14 +118,13 @@ func TestDraftStructAsEdit(t *testing.T) {
 	}
 }
 
-// Test draft store operations
-func TestDraftStoreOperations(t *testing.T) {
-	// Clear the draft store before test
-	draftStore = make(map[string]*Draft)
+// Test draft service operations
+func TestDraftServiceOperations(t *testing.T) {
+	// Create a fresh DraftService for testing
+	DraftSvc = NewDraftService()
 
 	var userID = "user123"
 	var guildID = "guild456"
-	var draftKey = getDraftKey(userID, guildID)
 
 	// Test storing a draft
 	var draft = &Draft{
@@ -136,12 +135,12 @@ func TestDraftStoreOperations(t *testing.T) {
 		CreatedAt: time.Now(),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
-	draftStore[draftKey] = draft
+	DraftSvc.Save(draft)
 
 	// Test retrieving the draft
 	var retrievedDraft *Draft
 	var exists bool
-	retrievedDraft, exists = draftStore[draftKey]
+	retrievedDraft, exists = DraftSvc.Get(userID, guildID)
 	if !exists {
 		t.Fatal("Expected draft to exist in store")
 	}
@@ -150,9 +149,8 @@ func TestDraftStoreOperations(t *testing.T) {
 	}
 
 	// Test draft doesn't exist for different user
-	var differentKey = getDraftKey("different_user", guildID)
 	var differentDraft *Draft
-	differentDraft, exists = draftStore[differentKey]
+	differentDraft, exists = DraftSvc.Get("different_user", guildID)
 	if exists {
 		t.Error("Expected draft to not exist for different user")
 	}
@@ -161,9 +159,8 @@ func TestDraftStoreOperations(t *testing.T) {
 	}
 
 	// Test draft doesn't exist for different guild
-	var differentGuildKey = getDraftKey(userID, "different_guild")
 	var differentGuildDraft *Draft
-	differentGuildDraft, exists = draftStore[differentGuildKey]
+	differentGuildDraft, exists = DraftSvc.Get(userID, "different_guild")
 	if exists {
 		t.Error("Expected draft to not exist for different guild")
 	}
@@ -172,9 +169,9 @@ func TestDraftStoreOperations(t *testing.T) {
 	}
 
 	// Test deleting draft
-	delete(draftStore, draftKey)
+	DraftSvc.Delete(userID, guildID)
 	var deletedDraft *Draft
-	deletedDraft, exists = draftStore[draftKey]
+	deletedDraft, exists = DraftSvc.Get(userID, guildID)
 	if exists {
 		t.Error("Expected draft to be deleted")
 	}
@@ -184,9 +181,9 @@ func TestDraftStoreOperations(t *testing.T) {
 }
 
 // Test multiple drafts for different user:guild combinations
-func TestDraftStoreMultipleDrafts(t *testing.T) {
-	// Clear the draft store before test
-	draftStore = make(map[string]*Draft)
+func TestDraftServiceMultipleDrafts(t *testing.T) {
+	// Create a fresh DraftService for testing
+	DraftSvc = NewDraftService()
 
 	var draft1 = &Draft{
 		UserID:    "user1",
@@ -214,14 +211,9 @@ func TestDraftStoreMultipleDrafts(t *testing.T) {
 	}
 
 	// Store all drafts
-	draftStore[getDraftKey(draft1.UserID, draft1.GuildID)] = draft1
-	draftStore[getDraftKey(draft2.UserID, draft2.GuildID)] = draft2
-	draftStore[getDraftKey(draft3.UserID, draft3.GuildID)] = draft3
-
-	// Verify all drafts exist
-	if len(draftStore) != 3 {
-		t.Errorf("Expected 3 drafts in store, got %d", len(draftStore))
-	}
+	DraftSvc.Save(draft1)
+	DraftSvc.Save(draft2)
+	DraftSvc.Save(draft3)
 
 	// Verify each draft can be retrieved correctly
 	var retrieved1 *Draft
@@ -229,17 +221,17 @@ func TestDraftStoreMultipleDrafts(t *testing.T) {
 	var retrieved3 *Draft
 	var exists bool
 
-	retrieved1, exists = draftStore[getDraftKey("user1", "guild1")]
+	retrieved1, exists = DraftSvc.Get("user1", "guild1")
 	if !exists || retrieved1.Content != "Draft 1 content" {
 		t.Error("Failed to retrieve draft 1 correctly")
 	}
 
-	retrieved2, exists = draftStore[getDraftKey("user2", "guild1")]
+	retrieved2, exists = DraftSvc.Get("user2", "guild1")
 	if !exists || retrieved2.Content != "Draft 2 content" {
 		t.Error("Failed to retrieve draft 2 correctly")
 	}
 
-	retrieved3, exists = draftStore[getDraftKey("user1", "guild2")]
+	retrieved3, exists = DraftSvc.Get("user1", "guild2")
 	if !exists || retrieved3.Content != "Draft 3 content" {
 		t.Error("Failed to retrieve draft 3 correctly")
 	}
@@ -460,8 +452,8 @@ func TestStoreVariable(t *testing.T) {
 }
 
 func TestDraftExpiration(t *testing.T) {
-	// Clear draft store
-	draftStore = make(map[string]*Draft)
+	// Create a fresh DraftService for testing
+	DraftSvc = NewDraftService()
 
 	// Create an expired draft
 	expiredDraft := &Draft{
@@ -472,16 +464,27 @@ func TestDraftExpiration(t *testing.T) {
 		CreatedAt: time.Now().Add(-48 * time.Hour), // Created 48 hours ago
 		ExpiresAt: time.Now().Add(-24 * time.Hour), // Expired 24 hours ago
 	}
-	draftStore["user123:guild456"] = expiredDraft
+	DraftSvc.Save(expiredDraft)
 
 	// Verify draft exists
-	if _, exists := draftStore["user123:guild456"]; !exists {
+	if _, exists := DraftSvc.Get("user123", "guild456"); !exists {
 		t.Fatal("Draft should exist before expiration check")
 	}
 
 	// Verify draft is expired
 	if !time.Now().After(expiredDraft.ExpiresAt) {
 		t.Fatal("Draft should be expired")
+	}
+
+	// Test CleanupExpired removes the draft
+	cleaned := DraftSvc.CleanupExpired()
+	if cleaned != 1 {
+		t.Errorf("Expected 1 expired draft to be cleaned, got %d", cleaned)
+	}
+
+	// Verify draft is deleted
+	if _, exists := DraftSvc.Get("user123", "guild456"); exists {
+		t.Fatal("Expired draft should have been deleted")
 	}
 }
 
