@@ -49,6 +49,19 @@ Reusable building blocks used by multiple commands.
 
 This is where the compose/preview/post steps become reusable functions, independent of command structure.
 
+#### Permission Checking
+
+The `CanUseCompose` function in `internal/handlers/permissions.go` validates user permissions before allowing compose command execution. Checks are performed in order:
+
+1. **Channel access** - Bot can view the target channel
+2. **Permission retrieval** - Bot can fetch user's channel permissions
+3. **Send Messages** - User has discordgo.PermissionSendMessages
+4. **Allowed roles** - User has at least one configured allowed role (if guild has role restrictions)
+5. **Channel restrictions** - Channel is not in the restricted list
+6. **Channel whitelist** - Channel is in the allowed list (if guild has whitelist configured)
+
+Failed checks return a `PermissionResult` with a descriptive error message. See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md#permission-error-reference) for error message explanations.
+
 ### internal/events
 
 Event handlers that receive Discord gateway events and route them to the correct logic. All event handlers live in this package. Designed for extensibility so post-MVP features (buttons, context commands, select menus, modals, etc.) are supported.
@@ -74,6 +87,22 @@ Persistence for:
 
 - Start with in-memory implementation.
 - Design interfaces so storage can be swapped for a database later.
+
+## Draft Management
+
+Drafts are temporary message compositions stored in memory before posting.
+
+- **Service**: `DraftService` in `internal/commands/draft_service.go`
+- **Thread Safety**: All operations protected by `sync.RWMutex`
+- **TTL**: Drafts expire after 24 hours (`DraftTTL`)
+- **Cleanup**: Background goroutine runs hourly to clean expired drafts
+- **Key Pattern**: `userID:guildID` ensures one draft per user per guild
+
+The service provides:
+- `Get(userID, guildID)` - Retrieve existing draft (read lock)
+- `Save(draft)` - Store new or updated draft (write lock)
+- `Delete(userID, guildID)` - Remove draft (write lock)
+- `CleanupExpired() int` - Remove expired drafts, return count
 
 ### internal/logging
 
@@ -158,6 +187,18 @@ The `internal/events` package handles errors by:
 - Context fields attach Discord IDs and error details for traceability
 - See `internal/events/error.go` for error categorization and logging integration
 
+**Defensive coding in error handlers**:
+Error handling code may be called when interaction data is incomplete. Use nil checks before accessing nested fields:
+
+```go
+var userID string
+if i.Member != nil && i.Member.User != nil {
+    userID = i.Member.User.ID
+}
+```
+
+This pattern is used in `respondWithError()` and other error logging contexts where the interaction structure may not be fully populated.
+
 **Error categorization**:
 
 | Category | Example Codes | Handling |
@@ -192,6 +233,50 @@ See [internal/events/error.go](../internal/events/error.go) for implementation d
 - `github.com/bwmarrin/discordgo` - Discord API
 - `github.com/joho/godotenv` - Env loading
 - See `go.mod` for versions.
+
+## Concurrency and Thread Safety
+
+The bot handles concurrent Discord interactions. Shared state must be protected.
+
+### In-Memory Storage with Mutex Protection
+
+Maps used by multiple handlers require explicit synchronization.
+
+**Pattern used in `internal/commands/compose.go`:**
+
+```go
+var (
+    draftStore   = make(map[string]*Draft)
+    draftStoreMu sync.RWMutex
+)
+```
+
+**Access patterns:**
+
+| Operation | Mutex Method |
+|-----------|--------------|
+| Read-only | `RLock()` / `RUnlock()` |
+| Write (add/update/delete) | `Lock()` / `Unlock()` |
+
+**Example:**
+
+```go
+// Write - exclusive lock
+draftStoreMu.Lock()
+draftStore[key] = &draft
+draftStoreMu.Unlock()
+
+// Read - shared lock
+draftStoreMu.RLock()
+draft, exists := draftStore[key]
+draftStoreMu.RUnlock()
+```
+
+**Scope notes:**
+
+- Keep critical sections small - release lock before calling Discord API
+- Use deferred unlocks only when function scope matches critical section
+- For multi-step operations (read-then-write), hold Lock throughout to prevent race conditions
 
 ## Code Conventions (Project Rules)
 
