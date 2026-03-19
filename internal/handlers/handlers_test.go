@@ -78,102 +78,6 @@ func (m *MockDiscordSession) ChannelTyping(channelID string) error {
 	return nil // Default to no error for tests that don't care about typing
 }
 
-// MockStore implements storage.Store interface for testing
-type MockStore struct {
-	guilds        map[string]*storage.Guild
-	guildConfigs  map[string]*storage.GuildConfig
-	proxyMessages map[string]*storage.ProxyMessage
-	saveError     error
-	getError      error
-	updateError   error
-	deleteError   error
-}
-
-func NewMockStore() *MockStore {
-	return &MockStore{
-		guilds:        make(map[string]*storage.Guild),
-		guildConfigs:  make(map[string]*storage.GuildConfig),
-		proxyMessages: make(map[string]*storage.ProxyMessage),
-	}
-}
-
-func (m *MockStore) SaveGuild(guildID, name string) error {
-	if m.saveError != nil {
-		return m.saveError
-	}
-	m.guilds[guildID] = &storage.Guild{ID: guildID, Name: name}
-	return nil
-}
-
-func (m *MockStore) GetGuild(guildID string) (*storage.Guild, error) {
-	if m.getError != nil {
-		return nil, m.getError
-	}
-	return m.guilds[guildID], nil
-}
-
-func (m *MockStore) DeleteGuild(guildID string) error {
-	if m.deleteError != nil {
-		return m.deleteError
-	}
-	delete(m.guilds, guildID)
-	delete(m.guildConfigs, guildID)
-	return nil
-}
-
-func (m *MockStore) SaveGuildConfig(config storage.GuildConfig) error {
-	if m.saveError != nil {
-		return m.saveError
-	}
-	m.guildConfigs[config.GuildID] = &config
-	return nil
-}
-
-func (m *MockStore) GetGuildConfig(guildID string) (*storage.GuildConfig, error) {
-	if m.getError != nil {
-		return nil, m.getError
-	}
-	return m.guildConfigs[guildID], nil
-}
-
-func (m *MockStore) SaveProxyMessage(msg storage.ProxyMessage) error {
-	if m.saveError != nil {
-		return m.saveError
-	}
-	var key = msg.GuildID + ":" + msg.MessageID
-	m.proxyMessages[key] = &msg
-	return nil
-}
-
-func (m *MockStore) GetProxyMessage(guildID, messageID string) (*storage.ProxyMessage, error) {
-	if m.getError != nil {
-		return nil, m.getError
-	}
-	var key = guildID + ":" + messageID
-	return m.proxyMessages[key], nil
-}
-
-func (m *MockStore) UpdateProxyMessage(msg storage.ProxyMessage) error {
-	if m.updateError != nil {
-		return m.updateError
-	}
-	var key = msg.GuildID + ":" + msg.MessageID
-	if _, exists := m.proxyMessages[key]; !exists {
-		return errors.New("proxy message not found")
-	}
-	m.proxyMessages[key] = &msg
-	return nil
-}
-
-func (m *MockStore) DeleteProxyMessage(guildID, messageID string) error {
-	if m.deleteError != nil {
-		return m.deleteError
-	}
-	var key = guildID + ":" + messageID
-	delete(m.proxyMessages, key)
-	return nil
-}
-
 // ==================== VALIDATION TESTS ====================
 
 func TestValidateContent(t *testing.T) {
@@ -193,7 +97,7 @@ func TestValidateContent(t *testing.T) {
 			name:      "empty content",
 			content:   "",
 			wantValid: false,
-			wantError: "Message content cannot be empty.",
+			wantError: "Please enter a message. Empty messages cannot be sent.",
 		},
 		{
 			name:      "content at max length",
@@ -205,13 +109,13 @@ func TestValidateContent(t *testing.T) {
 			name:      "content exceeds max length",
 			content:   strings.Repeat("a", MaxMessageLength+1),
 			wantValid: false,
-			wantError: "Message exceeds maximum length of 2000 characters (current: 2001).",
+			wantError: "Your message is too long. Discord has a 2000 character limit, and your message is 2001 characters. Please shorten it.",
 		},
 		{
 			name:      "whitespace only content is valid",
 			content:   "   ",
-			wantValid: true,
-			wantError: "",
+			wantValid: false,
+			wantError: "Please enter a message. Empty messages cannot be sent.",
 		},
 		{
 			name:      "single character",
@@ -222,6 +126,18 @@ func TestValidateContent(t *testing.T) {
 		{
 			name:      "unicode content",
 			content:   "Hello 世界! 🌍",
+			wantValid: true,
+			wantError: "",
+		},
+		{
+			name:      "whitespace with tabs and newlines",
+			content:   "\t\n  \t",
+			wantValid: false,
+			wantError: "Please enter a message. Empty messages cannot be sent.",
+		},
+		{
+			name:      "content with leading/trailing whitespace",
+			content:   "  hello world  ",
 			wantValid: true,
 			wantError: "",
 		},
@@ -359,7 +275,7 @@ func TestCanUseCompose(t *testing.T) {
 			perms:      discordgo.PermissionViewChannel, // only view, no send
 			permsErr:   nil,
 			wantAllowed: false,
-			wantError:  "You need permission to send messages in this channel.",
+			wantError:  "You need 'Send Messages' permission in this channel to use this command.",
 		},
 		{
 			name:       "user has zero permissions",
@@ -367,13 +283,13 @@ func TestCanUseCompose(t *testing.T) {
 			perms:      0,
 			permsErr:   nil,
 			wantAllowed: false,
-			wantError:  "You need permission to send messages in this channel.",
+			wantError:  "You need 'Send Messages' permission in this channel to use this command.",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var mockStore *MockStore = NewMockStore()
+			var mockStore *storage.MockStore = storage.NewMockStore()
 			var mockSession *MockDiscordSession = &MockDiscordSession{
 				ChannelFunc: func(channelID string) (*discordgo.Channel, error) {
 					if tt.channelErr != nil {
@@ -520,7 +436,7 @@ func TestPostProxiedMessage(t *testing.T) {
 			webhookExecuteErr: nil,
 			storeSaveErr:     nil,
 			wantSuccess:      false,
-			wantError:        "Failed to create webhook. Ensure the bot has Manage Webhooks permission in this channel.",
+			wantError:        "Unable to post message. The bot needs 'Manage Webhooks' permission in this channel. Ask a server admin to check bot permissions.",
 		},
 		{
 			name:           "webhook creation fails",
@@ -532,7 +448,7 @@ func TestPostProxiedMessage(t *testing.T) {
 			webhookExecuteErr: nil,
 			storeSaveErr:     nil,
 			wantSuccess:      false,
-			wantError:        "Failed to create webhook. Ensure the bot has Manage Webhooks permission in this channel.",
+			wantError:        "Unable to post message. The bot needs 'Manage Webhooks' permission in this channel. Ask a server admin to check bot permissions.",
 		},
 		{
 			name:           "webhook execution fails",
@@ -547,7 +463,7 @@ func TestPostProxiedMessage(t *testing.T) {
 			webhookExecuteErr: errors.New("webhook execution failed"),
 			storeSaveErr:     nil,
 			wantSuccess:      false,
-			wantError:        "Failed to post message. The webhook may have been deleted. Try again or contact an admin.",
+			wantError:        "Failed to post message. The webhook may have been deleted or the channel permissions changed. Try again, or ask a server admin to check the bot's access.",
 		},
 		{
 			name:           "store save fails but post succeeds",
@@ -570,8 +486,8 @@ func TestPostProxiedMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var mockStore *MockStore = NewMockStore()
-			mockStore.saveError = tt.storeSaveErr
+			var mockStore *storage.MockStore = storage.NewMockStore()
+			mockStore.SaveError = tt.storeSaveErr
 
 			var mockSession *MockDiscordSession = &MockDiscordSession{
 				BotUserFunc: func() *discordgo.User {
@@ -786,12 +702,27 @@ func TestExtractMessageIDFromURL(t *testing.T) {
 		{
 			name: "invalid URL - not discord",
 			url:  "https://example.com/path/to/resource",
-			want: "resource",
+			want: "",
 		},
 		{
 			name: "URL with extra path segments",
 			url:  "https://discord.com/channels/123/456/789/extra",
-			want: "extra",
+			want: "",
+		},
+		{
+			name: "discord.com with http instead of https",
+			url:  "http://discord.com/channels/123/456/789",
+			want: "789",
+		},
+		{
+			name: "invalid path - not channels",
+			url:  "https://discord.com/users/123/456/789",
+			want: "",
+		},
+		{
+			name: "discord CDN URL (should reject)",
+			url:  "https://cdn.discordapp.com/attachments/123/456/file.png",
+			want: "",
 		},
 	}
 
@@ -837,9 +768,9 @@ func TestExtractIDsFromURL(t *testing.T) {
 		{
 			name:      "URL with extra segments",
 			url:       "https://discord.com/channels/123/456/789/extra",
-			wantGuild: "456",
-			wantChan:  "789",
-			wantMsg:   "extra",
+			wantGuild: "",
+			wantChan:  "",
+			wantMsg:   "",
 		},
 	}
 
@@ -912,7 +843,7 @@ func TestEditProxiedMessage(t *testing.T) {
 			webhookEditErr:   nil,
 			storeUpdateErr:   nil,
 			wantSuccess:      false,
-			wantError:        "Cannot edit: webhook credentials not found for this message.",
+			wantError:        "Cannot edit this message. The webhook used to post it is no longer available. This can happen if the webhook was deleted or the bot lost access. Contact a server admin if you need help.",
 		},
 		{
 			name: "missing webhook token",
@@ -928,7 +859,7 @@ func TestEditProxiedMessage(t *testing.T) {
 			webhookEditErr:   nil,
 			storeUpdateErr:   nil,
 			wantSuccess:      false,
-			wantError:        "Cannot edit: webhook credentials not found for this message.",
+			wantError:        "Cannot edit this message. The webhook used to post it is no longer available. This can happen if the webhook was deleted or the bot lost access. Contact a server admin if you need help.",
 		},
 		{
 			name:             "webhook edit fails",
@@ -939,7 +870,7 @@ func TestEditProxiedMessage(t *testing.T) {
 			webhookEditErr:   errors.New("message not found or no longer editable"),
 			storeUpdateErr:   nil,
 			wantSuccess:      false,
-			wantError:        "Failed to edit message. It may have been deleted or is no longer editable.",
+			wantError:        "Failed to edit message. It may have been deleted, or the bot no longer has access. Try again, or use `/compose edit` to start a fresh edit proposal.",
 		},
 		{
 			name:             "store update fails but edit succeeds",
@@ -956,14 +887,13 @@ func TestEditProxiedMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var mockStore *MockStore = NewMockStore()
-			mockStore.updateError = tt.storeUpdateErr
+			var mockStore *storage.MockStore = storage.NewMockStore()
+			mockStore.UpdateError = tt.storeUpdateErr
 
 			// Pre-populate store with the proxy message for update test
 			if tt.proxyMsg.GuildID != "" && tt.proxyMsg.MessageID != "" {
-				var key string = tt.proxyMsg.GuildID + ":" + tt.proxyMsg.MessageID
 				var msgCopy storage.ProxyMessage = tt.proxyMsg
-				mockStore.proxyMessages[key] = &msgCopy
+				mockStore.SaveProxyMessage(msgCopy)
 			}
 
 			var mockSession *MockDiscordSession = &MockDiscordSession{
@@ -984,7 +914,7 @@ func TestEditProxiedMessage(t *testing.T) {
 }
 
 func TestGetProxiedMessage(t *testing.T) {
-	var mockStore *MockStore = NewMockStore()
+	var mockStore *storage.MockStore = storage.NewMockStore()
 	var testMsg *storage.ProxyMessage = &storage.ProxyMessage{
 		GuildID:   "guild123",
 		MessageID: "msg123",
@@ -992,7 +922,7 @@ func TestGetProxiedMessage(t *testing.T) {
 	}
 
 	// Pre-populate store
-	mockStore.proxyMessages["guild123:msg123"] = testMsg
+	mockStore.SaveProxyMessage(*testMsg)
 
 	tests := []struct {
 		name      string
@@ -1070,10 +1000,11 @@ func TestRenderPreviewResponse(t *testing.T) {
 				IsEdit:          false,
 				ConfirmButtonID: "confirm_123",
 				CancelButtonID:  "cancel_123",
+				ExpiresAt:       time.Now().Add(24 * time.Hour),
 			},
 			wantType:         discordgo.InteractionResponseChannelMessageWithSource,
 			wantEphemeral:    true,
-			wantConfirmLabel: "Post",
+			wantConfirmLabel: "Post Message",
 			wantTitle:        "Compose Preview",
 			wantColor:        0x3498db,
 			wantContent:      "```\nHello World\n```",
@@ -1088,10 +1019,11 @@ func TestRenderPreviewResponse(t *testing.T) {
 				OriginalMsgID:   "original789",
 				ConfirmButtonID: "apply_456",
 				CancelButtonID:  "cancel_456",
+				ExpiresAt:       time.Now().Add(24 * time.Hour),
 			},
 			wantType:         discordgo.InteractionResponseChannelMessageWithSource,
 			wantEphemeral:    true,
-			wantConfirmLabel: "Apply",
+			wantConfirmLabel: "Apply Edit",
 			wantTitle:        "Edit Preview",
 			wantColor:        0xe67e22,
 			wantContent:      "```\nUpdated content\n```",
@@ -1105,10 +1037,11 @@ func TestRenderPreviewResponse(t *testing.T) {
 				IsEdit:          false,
 				ConfirmButtonID: "confirm_789",
 				CancelButtonID:  "cancel_789",
+				ExpiresAt:       time.Now().Add(24 * time.Hour),
 			},
 			wantType:         discordgo.InteractionResponseChannelMessageWithSource,
 			wantEphemeral:    true,
-			wantConfirmLabel: "Post",
+			wantConfirmLabel: "Post Message",
 			wantTitle:        "Compose Preview",
 			wantColor:        0x3498db,
 			wantContent:      "```\nLine 1\nLine 2\nLine 3\n```",
@@ -1122,10 +1055,11 @@ func TestRenderPreviewResponse(t *testing.T) {
 				IsEdit:          false,
 				ConfirmButtonID: "confirm_000",
 				CancelButtonID:  "cancel_000",
+				ExpiresAt:       time.Now().Add(24 * time.Hour),
 			},
 			wantType:         discordgo.InteractionResponseChannelMessageWithSource,
 			wantEphemeral:    true,
-			wantConfirmLabel: "Post",
+			wantConfirmLabel: "Post Message",
 			wantTitle:        "Compose Preview",
 			wantColor:        0x3498db,
 			wantContent:      "```\n\n```",
@@ -1168,13 +1102,25 @@ func TestRenderPreviewResponse(t *testing.T) {
 				t.Errorf("RenderPreviewResponse() Embed Description = %q, want %q", embed.Description, tt.wantContent)
 			}
 
-			// Check target channel field
-			if len(embed.Fields) == 0 {
-				t.Fatal("RenderPreviewResponse() Embed Fields is empty")
-			}
+		// Check embed fields - should have at least 2 (Target Channel and Expires)
+		if len(embed.Fields) < 2 {
+				t.Errorf("RenderPreviewResponse() Embed Fields length = %d, want at least 2 (Target Channel + Expires)", len(embed.Fields))
+			} else {
+				// Check Target Channel field
+				if embed.Fields[0].Name != "Target Channel" {
+					t.Errorf("RenderPreviewResponse() Embed Fields[0].Name = %q, want Target Channel", embed.Fields[0].Name)
+				}
+				if embed.Fields[0].Value != tt.wantChannel {
+					t.Errorf("RenderPreviewResponse() Embed Fields[0].Value = %q, want %q", embed.Fields[0].Value, tt.wantChannel)
+				}
 
-			if embed.Fields[0].Value != tt.wantChannel {
-				t.Errorf("RenderPreviewResponse() Embed Fields[0].Value = %q, want %q", embed.Fields[0].Value, tt.wantChannel)
+				// Check Expires field
+				if embed.Fields[1].Name != "Expires" {
+					t.Errorf("RenderPreviewResponse() Embed Fields[1].Name = %q, want Expires", embed.Fields[1].Name)
+				}
+				if !strings.Contains(embed.Fields[1].Value, "Draft expires") {
+					t.Errorf("RenderPreviewResponse() Embed Fields[1].Value = %q, should contain 'Draft expires'", embed.Fields[1].Value)
+				}
 			}
 
 			// Check footer text
@@ -1182,14 +1128,9 @@ func TestRenderPreviewResponse(t *testing.T) {
 				t.Fatal("RenderPreviewResponse() Embed Footer is nil")
 			}
 
-			var expectedFooter string
-			if tt.data.IsEdit {
-				expectedFooter = "Click Apply to confirm the edit, or Cancel to discard."
-			} else {
-				expectedFooter = "Click Post to send the message, or Cancel to discard."
-			}
-			if embed.Footer.Text != expectedFooter {
-				t.Errorf("RenderPreviewResponse() Embed Footer.Text = %q, want %q", embed.Footer.Text, expectedFooter)
+			// Footer should contain the base text and storage warning
+			if !strings.Contains(embed.Footer.Text, "bot restarts") {
+				t.Errorf("RenderPreviewResponse() Embed Footer.Text should contain storage warning about 'bot restarts'")
 			}
 
 			// Check components
@@ -1257,13 +1198,14 @@ func TestBuildPreviewEmbed(t *testing.T) {
 				Content:       "Test message",
 				TargetChannel: "123456789",
 				IsEdit:        false,
+				ExpiresAt:     time.Now().Add(24 * time.Hour),
 			},
 			wantTitle:      "Compose Preview",
 			wantContent:    "```\nTest message\n```",
 			wantColor:      0x3498db,
 			wantChannel:    "<#123456789>",
 			wantHasMsgID:   false,
-			wantFooterText: "Click Post to send the message, or Cancel to discard.",
+			wantFooterText: "Review your message above. Click 'Post Message' to send, or 'Cancel' to discard. Note: Drafts are stored temporarily and will be lost if the bot restarts.",
 		},
 		{
 			name: "edit preview embed",
@@ -1272,6 +1214,8 @@ func TestBuildPreviewEmbed(t *testing.T) {
 				TargetChannel: "987654321",
 				IsEdit:        true,
 				OriginalMsgID: "msg123456",
+				GuildID:       "guild123",
+				ExpiresAt:     time.Now().Add(24 * time.Hour),
 			},
 			wantTitle:      "Edit Preview",
 			wantContent:    "```\nEdited message\n```",
@@ -1279,7 +1223,7 @@ func TestBuildPreviewEmbed(t *testing.T) {
 			wantChannel:    "<#987654321>",
 			wantHasMsgID:   true,
 			wantMsgID:      "msg123456",
-			wantFooterText: "Click Apply to confirm the edit, or Cancel to discard.",
+			wantFooterText: "Review your changes above. Click 'Apply Edit' to save, or 'Cancel' to discard. Note: Drafts are stored temporarily and will be lost if the bot restarts.",
 		},
 		{
 			name: "edit preview without original message id",
@@ -1288,13 +1232,44 @@ func TestBuildPreviewEmbed(t *testing.T) {
 				TargetChannel: "987654321",
 				IsEdit:        true,
 				OriginalMsgID: "",
+				ExpiresAt:     time.Now().Add(24 * time.Hour),
 			},
 			wantTitle:      "Edit Preview",
 			wantContent:    "```\nEdited message\n```",
 			wantColor:      0xe67e22,
 			wantChannel:    "<#987654321>",
 			wantHasMsgID:   false,
-			wantFooterText: "Click Apply to confirm the edit, or Cancel to discard.",
+			wantFooterText: "Review your changes above. Click 'Apply Edit' to save, or 'Cancel' to discard. Note: Drafts are stored temporarily and will be lost if the bot restarts.",
+		},
+		{
+			name: "near-expiration warning",
+			data: PreviewData{
+				Content:       "Draft expires soon",
+				TargetChannel: "123456789",
+				IsEdit:        false,
+				ExpiresAt:     time.Now().Add(30 * time.Minute),
+			},
+			wantTitle:      ":warning: Compose Preview",
+			wantContent:    "```\nDraft expires soon\n```",
+			wantColor:      0xf39c12,
+			wantChannel:    "<#123456789>",
+			wantHasMsgID:   false,
+			wantFooterText: "Review your message above. Click 'Post Message' to send, or 'Cancel' to discard. - This draft expires soon. Post or lose your work. Note: Drafts are stored temporarily and will be lost if the bot restarts.",
+		},
+		{
+			name: "expired draft",
+			data: PreviewData{
+				Content:       "Draft expired",
+				TargetChannel: "123456789",
+				IsEdit:        false,
+				ExpiresAt:     time.Now().Add(-1 * time.Hour),
+			},
+			wantTitle:      "Compose Preview",
+			wantContent:    "```\nDraft expired\n```",
+			wantColor:      0x3498db,
+			wantChannel:    "<#123456789>",
+			wantHasMsgID:   false,
+			wantFooterText: "Review your message above. Click 'Post Message' to send, or 'Cancel' to discard. Note: Drafts are stored temporarily and will be lost if the bot restarts.",
 		},
 	}
 
@@ -1325,8 +1300,8 @@ func TestBuildPreviewEmbed(t *testing.T) {
 					tt.wantFooterText)
 			}
 
-			// Check target channel field
-			if len(got.Fields) < 1 {
+		// Check target channel field
+		if len(got.Fields) < 1 {
 				t.Errorf("buildPreviewEmbed() Fields length = %d, want at least 1", len(got.Fields))
 			} else {
 				if got.Fields[0].Name != "Target Channel" {
@@ -1337,20 +1312,37 @@ func TestBuildPreviewEmbed(t *testing.T) {
 				}
 			}
 
-			// Check original message ID field for edits
-			if tt.wantHasMsgID {
+			// Check Expires field (always present as second field for non-edit or when no original msg ID)
+			if !tt.data.IsEdit || (tt.data.IsEdit && tt.data.OriginalMsgID == "") {
 				if len(got.Fields) < 2 {
-					t.Errorf("buildPreviewEmbed() Fields length = %d, want at least 2 for edit", len(got.Fields))
+					t.Errorf("buildPreviewEmbed() Fields length = %d, want at least 2 for compose preview (Target Channel + Expires)", len(got.Fields))
 				} else {
-					if got.Fields[1].Name != "Original Message" {
-						t.Errorf("buildPreviewEmbed() Fields[1].Name = %q, want Original Message", got.Fields[1].Name)
+					if got.Fields[1].Name != "Expires" {
+						t.Errorf("buildPreviewEmbed() Fields[1].Name = %q, want Expires", got.Fields[1].Name)
 					}
-					if !strings.Contains(got.Fields[1].Value, tt.wantMsgID) {
-						t.Errorf("buildPreviewEmbed() Fields[1].Value = %q, should contain %q", got.Fields[1].Value, tt.wantMsgID)
+					if !strings.Contains(got.Fields[1].Value, "Draft expires") {
+						t.Errorf("buildPreviewEmbed() Fields[1].Value = %q, should contain 'Draft expires'", got.Fields[1].Value)
 					}
 				}
-			} else if tt.data.IsEdit && len(got.Fields) > 1 {
-				t.Errorf("buildPreviewEmbed() Fields length = %d, should not have Original Message field when ID is empty", len(got.Fields))
+			}
+
+			// Check original message ID field for edits with valid OriginalMsgID
+			if tt.wantHasMsgID {
+				if len(got.Fields) < 3 {
+					t.Errorf("buildPreviewEmbed() Fields length = %d, want at least 3 for edit (Target Channel + Expires + Original Message)", len(got.Fields))
+				} else {
+					if got.Fields[2].Name != "Original Message" {
+						t.Errorf("buildPreviewEmbed() Fields[2].Name = %q, want Original Message", got.Fields[2].Name)
+					}
+					if !strings.Contains(got.Fields[2].Value, tt.wantMsgID) {
+						t.Errorf("buildPreviewEmbed() Fields[2].Value = %q, should contain %q", got.Fields[2].Value, tt.wantMsgID)
+					}
+				}
+			}
+
+			// Verify footer text contains storage warning
+			if got.Footer != nil && !strings.Contains(got.Footer.Text, "bot restarts") {
+				t.Errorf("buildPreviewEmbed() Footer.Text should contain storage warning about 'bot restarts'")
 			}
 		})
 	}
