@@ -128,10 +128,10 @@ func ComposeDraftExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	DraftSvc.Save(&draft)
 
 	// Verify target channel permissions AFTER storing draft
-	// Draft is already saved, so user can retry with /compose draft if needed
+	// Draft is already saved, so user can retry with /compose-draft if needed
 	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, targetChannelID, userID, Store, i.Member.Roles)
 	if !targetPermResult.Allowed {
-		respondWithError(s, i, "You cannot post in this channel. You need 'Send Messages' permission, or a role allowed by server admins.\n\nYour draft has been saved. Use `/compose draft` with a different channel to retry.", nil)
+		respondWithError(s, i, "You cannot post in this channel. You need 'Send Messages' permission, or a role allowed by server admins.\n\nYour draft has been saved. Use `/compose-draft` with a different channel to retry.", nil)
 		return
 	}
 
@@ -156,7 +156,7 @@ func ComposeDraftExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var response *discordgo.InteractionResponse = handlers.RenderPreviewResponse(previewData)
 	var err error = s.InteractionRespond(i.Interaction, response)
 	if err != nil {
-		respondWithError(s, i, "Failed to show preview. The bot may be experiencing issues. Wait a moment and try `/compose draft` again.", err)
+		respondWithError(s, i, "Failed to show preview. The bot may be experiencing issues. Wait a moment and try `/compose-draft` again.", err)
 		return
 	}
 }
@@ -231,7 +231,7 @@ func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Verify target channel permissions
 	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, targetChannelID, userID, Store, i.Member.Roles)
 	if !targetPermResult.Allowed {
-		// Store draft so user can retry with /compose draft
+		// Store draft so user can retry with /compose-draft
 		var now = time.Now()
 		var draft Draft = Draft{
 			UserID:        userID,
@@ -251,7 +251,7 @@ func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			logging.String("channel_id", targetChannelID),
 		)
 
-		respondWithError(s, i, "You cannot post in this channel. You need 'Send Messages' permission, or a role allowed by server admins.\n\nYour message has been saved as a draft. Use `/compose draft` to review and post to a different channel.", nil)
+		respondWithError(s, i, "You cannot post in this channel. You need 'Send Messages' permission, or a role allowed by server admins.\n\nYour message has been saved as a draft. Use `/compose-draft` to review and post to a different channel.", nil)
 		return
 	}
 
@@ -411,7 +411,7 @@ func ComposeEditExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var response *discordgo.InteractionResponse = handlers.RenderPreviewResponse(previewData)
 	var err error = s.InteractionRespond(i.Interaction, response)
 	if err != nil {
-		respondWithError(s, i, "Failed to show preview. The bot may be experiencing issues. Wait a moment and try `/compose edit` again.", err)
+		respondWithError(s, i, "Failed to show preview. The bot may be experiencing issues. Wait a moment and try `/compose-edit` again.", err)
 		return
 	}
 }
@@ -430,7 +430,7 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
+		respondWithError(s, i, "No pending draft found. Use `/compose-draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
@@ -491,7 +491,7 @@ func handleComposePreviewCancel(s *discordgo.Session, i *discordgo.InteractionCr
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
+		respondWithError(s, i, "No pending draft found. Use `/compose-draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
@@ -548,7 +548,7 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose edit <message> <content>`.", nil)
+		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose-edit <message> <content>`.", nil)
 		return
 	}
 
@@ -627,7 +627,7 @@ func handleEditPreviewCancel(s *discordgo.Session, i *discordgo.InteractionCreat
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending edit draft found. Create one with `/compose edit`.", nil)
+		respondWithError(s, i, "No pending edit draft found. Create one with `/compose-edit`.", nil)
 		return
 	}
 
@@ -683,7 +683,7 @@ func handleConfirmDiscard(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
+		respondWithError(s, i, "No pending draft found. Use `/compose-draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
@@ -695,7 +695,7 @@ func handleConfirmDiscard(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		logging.String("guild_id", guildID),
 	)
 
-	respondToUser(s, i, ":wastebasket: **Draft discarded.** Use `/compose draft` to create a new draft.")
+	respondToUser(s, i, ":wastebasket: **Draft discarded.** Use `/compose-draft` to create a new draft.")
 }
 
 // handleKeepDraft preserves the draft and re-shows the preview.
@@ -708,7 +708,7 @@ func handleKeepDraft(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
+		respondWithError(s, i, "No pending draft found. Use `/compose-draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
@@ -834,7 +834,7 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose edit <message> <content>`.", nil)
+		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose-edit <message> <content>`.", nil)
 		return
 	}
 
@@ -916,7 +916,7 @@ func handleEditCancelAfterError(s *discordgo.Session, i *discordgo.InteractionCr
 		logging.String("guild_id", guildID),
 	)
 
-	respondToUser(s, i, ":wastebasket: **Edit draft cancelled.** Use `/compose edit` to create a new edit draft.")
+	respondToUser(s, i, ":wastebasket: **Edit draft cancelled.** Use `/compose-edit` to create a new edit draft.")
 }
 
 // handleComposeRetryPost retries posting the draft after a failure.
@@ -930,7 +930,7 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 	var exists bool
 	draft, exists = DraftSvc.Get(userID, guildID)
 	if !exists || draft == nil {
-		respondWithError(s, i, "Draft no longer available. Create a new draft with `/compose draft`.", nil)
+		respondWithError(s, i, "Draft no longer available. Create a new draft with `/compose-draft`.", nil)
 		return
 	}
 
@@ -994,7 +994,7 @@ func handleComposeCancelAfterError(s *discordgo.Session, i *discordgo.Interactio
 		logging.String("guild_id", guildID),
 	)
 
-	respondToUser(s, i, ":wastebasket: **Draft discarded.** Use `/compose draft` to create a new draft.")
+	respondToUser(s, i, ":wastebasket: **Draft discarded.** Use `/compose-draft` to create a new draft.")
 }
 
 func init() {

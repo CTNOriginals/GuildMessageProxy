@@ -130,8 +130,11 @@ func getOrCreateWebhook(s DiscordSession, channelID string) (*discordgo.Webhook,
 
 	// Look for an existing webhook created by this bot
 	var botUser *discordgo.User = s.BotUser()
+	if botUser == nil {
+		return nil, fmt.Errorf("bot user not available in session state")
+	}
 	for _, webhook := range webhooks {
-		if webhook.User != nil && botUser != nil && webhook.User.ID == botUser.ID {
+		if webhook.User != nil && webhook.User.ID == botUser.ID {
 			// Found existing webhook created by bot
 			return webhook, nil
 		}

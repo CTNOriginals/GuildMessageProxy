@@ -81,7 +81,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if err != nil {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "Unable to verify channel permissions.",
+			Error:   "Cannot access this channel. The bot may lack permissions, or the channel no longer exists. Try again or contact a server admin.",
 		}
 	}
 
@@ -91,7 +91,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if err != nil {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "Unable to verify user permissions.",
+			Error:   "Cannot verify your permissions in this channel. Try again or use a different channel.",
 		}
 	}
 
@@ -118,10 +118,10 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	// 5. Check allowed roles if configured
 	if config != nil && len(config.AllowedRoles) > 0 {
 		if !hasAnyRole(memberRoles, config.AllowedRoles) {
-			return PermissionResult{
-				Allowed: false,
-				Error:   "You need a specific role to use this command. Contact a server admin to check allowed roles.",
-			}
+return PermissionResult{
+			Allowed: false,
+			Error:   "This command requires an allowed role. Ask a server admin which roles can use compose commands.",
+		}
 		}
 	}
 
@@ -129,7 +129,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if isChannelRestricted(channelID, config) {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "This channel is restricted. Compose commands cannot be used here. Contact server admins to remove this channel from the restriction list.",
+			Error:   "This channel is restricted. Use compose commands in an allowed channel instead.",
 		}
 	}
 
@@ -137,7 +137,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if !isChannelAllowed(channelID, config) {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "This channel is not on the allowed list for compose commands. Contact server admins to add this channel, or use a permitted channel.",
+			Error:   "This channel is not allowed for compose commands. Use a permitted channel or ask a server admin to add this channel.",
 		}
 	}
 

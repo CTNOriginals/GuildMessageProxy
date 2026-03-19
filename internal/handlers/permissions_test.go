@@ -219,7 +219,7 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 			memberRoles:  []string{"role1", "role3"},
 			allowedRoles: []string{"role2", "role4"},
 			wantAllowed:  false,
-			wantError:    "You need a specific role to use this command. Contact a server admin to check allowed roles.",
+			wantError:    "This command requires an allowed role. Ask a server admin which roles can use compose commands.",
 		},
 		{
 			name:         "no_allowed_roles_configured",
@@ -236,7 +236,7 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 			allowedRoles:  []string{},
 			restrictedChs: []string{"channel123"},
 			wantAllowed:   false,
-			wantError:     "This channel is restricted. Compose commands cannot be used here. Contact server admins to remove this channel from the restriction list.",
+			wantError:     "This channel is restricted. Use compose commands in an allowed channel instead.",
 		},
 		{
 			name:         "channel_not_in_whitelist",
@@ -245,7 +245,7 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 			allowedRoles: []string{},
 			allowedChs:   []string{"channel456", "channel789"},
 			wantAllowed:  false,
-			wantError:    "This channel is not on the allowed list for compose commands. Contact server admins to add this channel, or use a permitted channel.",
+			wantError:    "This channel is not allowed for compose commands. Use a permitted channel or ask a server admin to add this channel.",
 		},
 		{
 			name:         "channel_in_whitelist",

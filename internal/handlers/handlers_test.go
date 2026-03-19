@@ -259,7 +259,7 @@ func TestCanUseCompose(t *testing.T) {
 			perms:      0,
 			permsErr:   nil,
 			wantAllowed: false,
-			wantError:  "Unable to verify channel permissions.",
+			wantError:  "Cannot access this channel. The bot may lack permissions, or the channel no longer exists. Try again or contact a server admin.",
 		},
 		{
 			name:       "permission check error",
@@ -267,7 +267,7 @@ func TestCanUseCompose(t *testing.T) {
 			perms:      0,
 			permsErr:   errors.New("permission check failed"),
 			wantAllowed: false,
-			wantError:  "Unable to verify user permissions.",
+			wantError:  "Cannot verify your permissions in this channel. Try again or use a different channel.",
 		},
 		{
 			name:       "user lacks send messages permission",
