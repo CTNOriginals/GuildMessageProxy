@@ -2,6 +2,7 @@ package commands
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/colors"
 )
 
 // ComposeHelpDefinition is the command definition for compose-help.
@@ -37,7 +38,7 @@ func ComposeHelpExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Title:       "Compose Commands Help",
 		Description: "Post messages on behalf of your server. Useful for announcements, updates, and collaborative posting.",
 		Fields:      fields,
-		Color:       0x3498db, // Blue color
+		Color:       colors.Primary,
 	}
 
 	// Add footer with helpful tips

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/colors"
 )
 
 // PreviewData contains all information needed to render a preview
@@ -120,11 +121,11 @@ func buildPreviewEmbed(data PreviewData) *discordgo.MessageEmbed {
 
 	if data.IsEdit {
 		title = "Edit Preview"
-		color = 0xe67e22 // Orange for edit
+		color = colors.Edit
 		footerText = "Review your changes above. Click 'Apply Edit' to save, or 'Cancel' to discard."
 	} else {
 		title = "Compose Preview"
-		color = 0x3498db // Blue for compose
+		color = colors.Primary
 		footerText = "Review your message above. Click 'Post Message' to send, or 'Cancel' to discard."
 	}
 
@@ -136,7 +137,7 @@ func buildPreviewEmbed(data PreviewData) *discordgo.MessageEmbed {
 	}
 
 	if expiresSoon {
-		color = 0xf39c12 // Yellow/orange warning color
+		color = colors.Warning
 		title = ":warning: " + title
 	}
 

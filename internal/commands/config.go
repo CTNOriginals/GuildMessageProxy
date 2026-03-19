@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/colors"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
@@ -95,7 +96,7 @@ func respondWithEmbed(s *discordgo.Session, i *discordgo.InteractionCreate, titl
 		Title:       title,
 		Description: description,
 		Fields:      fields,
-		Color:       0x3498db, // Blue color
+		Color:       colors.Primary,
 	}
 
 	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
