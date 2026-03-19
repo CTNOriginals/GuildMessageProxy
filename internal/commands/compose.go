@@ -5,6 +5,7 @@ package commands
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -32,7 +33,10 @@ type Draft struct {
 }
 
 // draftStore is the in-memory map holding pending drafts (key: userID:guildID).
-var draftStore map[string]*Draft = make(map[string]*Draft)
+var (
+	draftStore   = make(map[string]*Draft)
+	draftStoreMu sync.RWMutex
+)
 
 // CleanupExpiredDrafts removes drafts older than their ExpiresAt time.
 // It returns the count of cleaned drafts.
@@ -40,12 +44,14 @@ func CleanupExpiredDrafts() int {
 	var now = time.Now()
 	var cleaned int
 
+	draftStoreMu.Lock()
 	for key, draft := range draftStore {
 		if now.After(draft.ExpiresAt) {
 			delete(draftStore, key)
 			cleaned++
 		}
 	}
+	draftStoreMu.Unlock()
 
 	return cleaned
 }
@@ -133,7 +139,9 @@ func ComposeDraftExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		IsEdit:        false,
 		OriginalMsgID: "",
 	}
+	draftStoreMu.Lock()
 	draftStore[draftKey] = &draft
+	draftStoreMu.Unlock()
 
 	// Verify target channel permissions AFTER storing draft
 	// Draft is already saved, so user can retry with /compose draft if needed
@@ -252,7 +260,9 @@ func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			IsEdit:        false,
 			OriginalMsgID: "",
 		}
+		draftStoreMu.Lock()
 		draftStore[draftKey] = &draft
+		draftStoreMu.Unlock()
 
 		logging.Info("Draft created on permission failure",
 			logging.String("user_id", userID),
@@ -277,35 +287,12 @@ func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		logging.String("message_id", postResult.MessageID),
 	)
 
-	// Build jump URL and components for success message
+	// Build jump URL and send success message
 	var jumpURL string = "https://discord.com/channels/" + guildID + "/" + targetChannelID + "/" + postResult.MessageID
-	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label: "Jump to message",
-					Style: discordgo.LinkButton,
-					URL:   jumpURL,
-				},
-			},
-		},
-	}
-
-	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content:    fmt.Sprintf(":white_check_mark: **Message posted!** Here's what was sent:\n> %s", truncateContent(content, 200)),
-			Flags:      discordgo.MessageFlagsEphemeral,
-			Components: components,
-		},
-	})
-
-	if err != nil {
-		logging.Error("Failed to send success response",
-			logging.Err("error", err),
-			logging.String("user_id", userID),
-		)
-	}
+	RespondWithSuccessAndJumpURL(s, i,
+		fmt.Sprintf(":white_check_mark: **Message posted!** Here's what was sent:\n> %s", truncateContent(content, 200)),
+		jumpURL,
+		"Jump to message")
 }
 
 // ComposePostExecute is an alias for backward compatibility.
@@ -365,7 +352,7 @@ func ComposeEditExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Validate message reference length
 	if len(messageRef) > 200 {
-		respondWithError(s, i, "Invalid message reference. Please provide a valid message ID or link (max 200 characters).", nil)
+		respondWithError(s, i, "Invalid input. Paste a message link (right-click message → Copy Link) or the message ID number.", nil)
 		return
 	}
 
@@ -421,7 +408,9 @@ func ComposeEditExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		IsEdit:        true,
 		OriginalMsgID: messageID,
 	}
+	draftStoreMu.Lock()
 	draftStore[draftKey] = &draft
+	draftStoreMu.Unlock()
 
 	logging.Info("Edit draft created",
 		logging.String("user_id", userID),
@@ -460,10 +449,12 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 
 	// Retrieve draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
@@ -471,12 +462,14 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
 		delete(draftStore, draftKey)
-		respondWithError(s, i, "Draft expired. Please create a new draft.", nil)
+		draftStoreMu.Unlock()
+		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only post your own drafts. This draft was created by someone else.", nil)
 		return
 	}
@@ -491,42 +484,17 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	var postResult handlers.PostResult = handlers.PostProxiedMessage(session, draft.GuildID, draft.ChannelID, draft.Content, draft.UserID, Store)
 	if !postResult.Success {
 		// Do NOT delete draft on failure - keep it for retry
-		var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						Label:    "Retry",
-						Style:    discordgo.PrimaryButton,
-						CustomID: string(ButtonComposeRetryPost),
-					},
-					discordgo.Button{
-						Label:    "Cancel",
-						Style:    discordgo.SecondaryButton,
-						CustomID: string(ButtonComposeCancelAfterError),
-					},
-				},
-			},
-		}
-
-		var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content:    fmt.Sprintf(":x: **Failed to post message**\n\n%s\n\nYour draft is preserved. Try again?", postResult.Error),
-				Flags:      discordgo.MessageFlagsEphemeral,
-				Components: components,
-			},
-		})
-		if err != nil {
-			logging.Error("Failed to send error response with retry/cancel buttons",
-				logging.Err("error", err),
-				logging.String("user_id", userID),
-			)
-		}
+		draftStoreMu.Unlock()
+		RespondWithRetry(s, i,
+			fmt.Sprintf(":x: **Failed to post message**\n\n%s\n\nYour draft is preserved. Try again?", postResult.Error),
+			string(ButtonComposeRetryPost),
+			string(ButtonComposeCancelAfterError))
 		return
 	}
 
 	// Delete draft on success
 	delete(draftStore, draftKey)
+	draftStoreMu.Unlock()
 
 	logging.Info("Draft posted",
 		logging.String("user_id", userID),
@@ -534,34 +502,12 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 		logging.String("message_id", postResult.MessageID),
 	)
 
-	// Build jump URL and components for success message
+	// Build jump URL and send success message
 	var jumpURL string = "https://discord.com/channels/" + draft.GuildID + "/" + draft.ChannelID + "/" + postResult.MessageID
-	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label: "Jump to message",
-					Style: discordgo.LinkButton,
-					URL:   jumpURL,
-				},
-			},
-		},
-	}
-
-	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content:    fmt.Sprintf(":white_check_mark: **Message posted!** Here's what was sent:\n> %s", truncateContent(draft.Content, 200)),
-			Flags:      discordgo.MessageFlagsEphemeral,
-			Components: components,
-		},
-	})
-	if err != nil {
-		logging.Error("Failed to send success response",
-			logging.Err("error", err),
-			logging.String("user_id", userID),
-		)
-	}
+	RespondWithSuccessAndJumpURL(s, i,
+		fmt.Sprintf(":white_check_mark: **Message posted!** Here's what was sent:\n> %s", truncateContent(draft.Content, 200)),
+		jumpURL,
+		"Jump to message")
 }
 
 // handleComposePreviewCancel shows a confirmation dialog before discarding the draft.
@@ -571,9 +517,11 @@ func handleComposePreviewCancel(s *discordgo.Session, i *discordgo.InteractionCr
 
 	// Look up draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.RLock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
+	draftStoreMu.RUnlock()
 	if !exists || draft == nil {
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
@@ -629,10 +577,12 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 
 	// Retrieve draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose edit <message> <content>`.", nil)
 		return
 	}
@@ -640,18 +590,21 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
 		delete(draftStore, draftKey)
+		draftStoreMu.Unlock()
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only apply your own edit drafts. This draft was created by someone else.", nil)
 		return
 	}
 
 	// Verify this is an edit draft
 	if !draft.IsEdit {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "This draft is for a new message, not an edit. Use 'Post Message' instead.", nil)
 		return
 	}
@@ -661,6 +614,7 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var lookupErr error
 	proxyMsg, lookupErr = handlers.GetProxiedMessage(Store, guildID, draft.OriginalMsgID)
 	if lookupErr != nil || proxyMsg == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "Message not found. Only messages you created with /compose can be edited. Check the message ID or verify this message was posted by this bot.", lookupErr)
 		return
 	}
@@ -675,42 +629,17 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var editResult handlers.EditResult = handlers.EditProxiedMessage(session, proxyMsg, draft.Content, userID, Store)
 	if !editResult.Success {
 		// Keep draft on failure and show error with retry/cancel buttons
-		var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						Label:    "Retry",
-						Style:    discordgo.PrimaryButton,
-						CustomID: string(ButtonEditRetryApply),
-					},
-					discordgo.Button{
-						Label:    "Cancel",
-						Style:    discordgo.SecondaryButton,
-						CustomID: string(ButtonEditCancelAfterError),
-					},
-				},
-			},
-		}
-
-		var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content:    fmt.Sprintf(":x: **Failed to apply edit**\n\n%s\n\nYour edit draft is preserved. Try again?", editResult.Error),
-				Flags:      discordgo.MessageFlagsEphemeral,
-				Components: components,
-			},
-		})
-		if err != nil {
-			logging.Error("Failed to send error response with retry/cancel buttons",
-				logging.Err("error", err),
-				logging.String("user_id", userID),
-			)
-		}
+		draftStoreMu.Unlock()
+		RespondWithRetry(s, i,
+			fmt.Sprintf(":x: **Failed to apply edit**\n\n%s\n\nYour edit draft is preserved. Try again?", editResult.Error),
+			string(ButtonEditRetryApply),
+			string(ButtonEditCancelAfterError))
 		return
 	}
 
 	// Delete draft on success
 	delete(draftStore, draftKey)
+	draftStoreMu.Unlock()
 
 	logging.Info("Edit applied",
 		logging.String("user_id", userID),
@@ -718,41 +647,15 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 		logging.String("message_id", draft.OriginalMsgID),
 	)
 
-	// Build jump URL and components for success message
+	// Build jump URL and success message content
 	var jumpURL string = "https://discord.com/channels/" + draft.GuildID + "/" + draft.ChannelID + "/" + draft.OriginalMsgID
-	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label: "View edited message",
-					Style: discordgo.LinkButton,
-					URL:   jumpURL,
-				},
-			},
-		},
+	var successContent string = ":white_check_mark: **Message edited successfully!**\n\n"
+	if originalContent != "" {
+		successContent += fmt.Sprintf("**Before:**\n> %s\n\n", truncateContent(originalContent, 100))
 	}
+	successContent += fmt.Sprintf("**After:**\n> %s", truncateContent(draft.Content, 100))
 
-	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: func() string {
-				var msg string = ":white_check_mark: **Message edited successfully!**\n\n"
-				if originalContent != "" {
-					msg += fmt.Sprintf("**Before:**\n> %s\n\n", truncateContent(originalContent, 100))
-				}
-				msg += fmt.Sprintf("**After:**\n> %s", truncateContent(draft.Content, 100))
-				return msg
-			}(),
-			Flags:      discordgo.MessageFlagsEphemeral,
-			Components: components,
-		},
-	})
-	if err != nil {
-		logging.Error("Failed to send edit success response",
-			logging.Err("error", err),
-			logging.String("user_id", userID),
-		)
-	}
+	RespondWithSuccessAndJumpURL(s, i, successContent, jumpURL, "View edited message")
 }
 
 // handleEditPreviewCancel shows a confirmation dialog before discarding the edit proposal.
@@ -762,9 +665,11 @@ func handleEditPreviewCancel(s *discordgo.Session, i *discordgo.InteractionCreat
 
 	// Look up draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.RLock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
+	draftStoreMu.RUnlock()
 	if !exists || draft == nil {
 		respondWithError(s, i, "No pending edit draft found. Create one with `/compose edit`.", nil)
 		return
@@ -819,16 +724,19 @@ func handleConfirmDiscard(s *discordgo.Session, i *discordgo.InteractionCreate) 
 
 	// Look up draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
 	}
 
 	// Delete draft
 	delete(draftStore, draftKey)
+	draftStoreMu.Unlock()
 
 	logging.Info("Draft discarded",
 		logging.String("user_id", userID),
@@ -845,9 +753,11 @@ func handleKeepDraft(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Look up draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.RLock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
+	draftStoreMu.RUnlock()
 	if !exists || draft == nil {
 		respondWithError(s, i, "No pending draft found. Use `/compose draft` to create a new message, or check if your draft expired.", nil)
 		return
@@ -949,10 +859,14 @@ func respondToUser(s *discordgo.Session, i *discordgo.InteractionCreate, msg str
 // respondWithError sends a formatted error response to the user.
 func respondWithError(s *discordgo.Session, i *discordgo.InteractionCreate, userMsg string, err error) {
 	if err != nil {
+		var userID string
+		if i.Member != nil && i.Member.User != nil {
+			userID = i.Member.User.ID
+		}
 		logging.Error("Error in command execution",
 			logging.Err("error", err),
 			logging.String("context", userMsg),
-			logging.String("user_id", i.Member.User.ID),
+			logging.String("user_id", userID),
 			logging.String("guild_id", i.GuildID),
 			logging.String("interaction_id", i.ID),
 		)
@@ -968,10 +882,12 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 
 	// Retrieve draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "No pending edit draft found. Create an edit draft with `/compose edit <message> <content>`.", nil)
 		return
 	}
@@ -979,18 +895,21 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
 		delete(draftStore, draftKey)
+		draftStoreMu.Unlock()
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only edit your own drafts.", nil)
 		return
 	}
 
 	// Verify this is an edit draft
 	if !draft.IsEdit {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "This is not an edit draft. Use the Post button to send new messages.", nil)
 		return
 	}
@@ -1000,6 +919,7 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var lookupErr error
 	proxyMsg, lookupErr = handlers.GetProxiedMessage(Store, guildID, draft.OriginalMsgID)
 	if lookupErr != nil || proxyMsg == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "Message not found. Only messages posted via /compose can be edited. Check the message ID or link.", lookupErr)
 		return
 	}
@@ -1014,42 +934,17 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	var editResult handlers.EditResult = handlers.EditProxiedMessage(session, proxyMsg, draft.Content, userID, Store)
 	if !editResult.Success {
 		// Keep draft on failure and show error with retry/cancel buttons again
-		var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						Label:    "Retry",
-						Style:    discordgo.PrimaryButton,
-						CustomID: string(ButtonEditRetryApply),
-					},
-					discordgo.Button{
-						Label:    "Cancel",
-						Style:    discordgo.SecondaryButton,
-						CustomID: string(ButtonEditCancelAfterError),
-					},
-				},
-			},
-		}
-
-		var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content:    fmt.Sprintf(":x: **Failed to apply edit**\n\n%s\n\nYour edit draft is preserved. Try again?", editResult.Error),
-				Flags:      discordgo.MessageFlagsEphemeral,
-				Components: components,
-			},
-		})
-		if err != nil {
-			logging.Error("Failed to send error response with retry/cancel buttons",
-				logging.Err("error", err),
-				logging.String("user_id", userID),
-			)
-		}
+		draftStoreMu.Unlock()
+		RespondWithRetry(s, i,
+			fmt.Sprintf(":x: **Failed to apply edit**\n\n%s\n\nYour edit draft is preserved. Try again?", editResult.Error),
+			string(ButtonEditRetryApply),
+			string(ButtonEditCancelAfterError))
 		return
 	}
 
 	// Delete draft on success
 	delete(draftStore, draftKey)
+	draftStoreMu.Unlock()
 
 	logging.Info("Edit applied on retry",
 		logging.String("user_id", userID),
@@ -1057,41 +952,15 @@ func handleEditRetryApply(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		logging.String("message_id", draft.OriginalMsgID),
 	)
 
-	// Build jump URL and components for success message
+	// Build jump URL and success message content
 	var jumpURL string = "https://discord.com/channels/" + draft.GuildID + "/" + draft.ChannelID + "/" + draft.OriginalMsgID
-	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label: "View edited message",
-					Style: discordgo.LinkButton,
-					URL:   jumpURL,
-				},
-			},
-		},
+	var successContent string = ":white_check_mark: **Message edited successfully!**\n\n"
+	if originalContent != "" {
+		successContent += fmt.Sprintf("**Before:**\n> %s\n\n", truncateContent(originalContent, 100))
 	}
+	successContent += fmt.Sprintf("**After:**\n> %s", truncateContent(draft.Content, 100))
 
-	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: func() string {
-				var msg string = ":white_check_mark: **Message edited successfully!**\n\n"
-				if originalContent != "" {
-					msg += fmt.Sprintf("**Before:**\n> %s\n\n", truncateContent(originalContent, 100))
-				}
-				msg += fmt.Sprintf("**After:**\n> %s", truncateContent(draft.Content, 100))
-				return msg
-			}(),
-			Flags:      discordgo.MessageFlagsEphemeral,
-			Components: components,
-		},
-	})
-	if err != nil {
-		logging.Error("Failed to send edit success response",
-			logging.Err("error", err),
-			logging.String("user_id", userID),
-		)
-	}
+	RespondWithSuccessAndJumpURL(s, i, successContent, jumpURL, "View edited message")
 }
 
 // handleEditCancelAfterError deletes the edit proposal after an edit failure.
@@ -1101,6 +970,7 @@ func handleEditCancelAfterError(s *discordgo.Session, i *discordgo.InteractionCr
 
 	// Look up draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
@@ -1108,6 +978,7 @@ func handleEditCancelAfterError(s *discordgo.Session, i *discordgo.InteractionCr
 		// Delete draft
 		delete(draftStore, draftKey)
 	}
+	draftStoreMu.Unlock()
 
 	logging.Info("Edit draft cancelled after error",
 		logging.String("user_id", userID),
@@ -1125,10 +996,12 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 
 	// Retrieve draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "Draft no longer available. Create a new draft with `/compose draft`.", nil)
 		return
 	}
@@ -1136,18 +1009,21 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 	// Check if draft has expired
 	if time.Now().After(draft.ExpiresAt) {
 		delete(draftStore, draftKey)
+		draftStoreMu.Unlock()
 		respondWithError(s, i, fmt.Sprintf("Draft expired %s ago. Please create a new draft.", formatDurationPast(draft.ExpiresAt)), nil)
 		return
 	}
 
 	// Check if user owns the draft
 	if draft.UserID != userID {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "You can only post your own drafts.", nil)
 		return
 	}
 
 	// Verify this is not an edit draft
 	if draft.IsEdit {
+		draftStoreMu.Unlock()
 		respondWithError(s, i, "This is an edit draft. Use the Apply button to save edits.", nil)
 		return
 	}
@@ -1156,42 +1032,17 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 	var postResult handlers.PostResult = handlers.PostProxiedMessage(session, draft.GuildID, draft.ChannelID, draft.Content, draft.UserID, Store)
 	if !postResult.Success {
 		// Keep draft on failure and show error with retry/cancel buttons again
-		var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						Label:    "Retry",
-						Style:    discordgo.PrimaryButton,
-						CustomID: string(ButtonComposeRetryPost),
-					},
-					discordgo.Button{
-						Label:    "Cancel",
-						Style:    discordgo.SecondaryButton,
-						CustomID: string(ButtonComposeCancelAfterError),
-					},
-				},
-			},
-		}
-
-		var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content:    fmt.Sprintf(":x: **Failed to post message**\n\n%s\n\nYour draft is preserved. Try again?", postResult.Error),
-				Flags:      discordgo.MessageFlagsEphemeral,
-				Components: components,
-			},
-		})
-		if err != nil {
-			logging.Error("Failed to send error response with retry/cancel buttons",
-				logging.Err("error", err),
-				logging.String("user_id", userID),
-			)
-		}
+		draftStoreMu.Unlock()
+		RespondWithRetry(s, i,
+			fmt.Sprintf(":x: **Failed to post message**\n\n%s\n\nYour draft is preserved. Try again?", postResult.Error),
+			string(ButtonComposeRetryPost),
+			string(ButtonComposeCancelAfterError))
 		return
 	}
 
 	// Delete draft on success
 	delete(draftStore, draftKey)
+	draftStoreMu.Unlock()
 
 	logging.Info("Draft posted on retry",
 		logging.String("user_id", userID),
@@ -1199,34 +1050,12 @@ func handleComposeRetryPost(s *discordgo.Session, i *discordgo.InteractionCreate
 		logging.String("message_id", postResult.MessageID),
 	)
 
-	// Build jump URL and components for success message
+	// Build jump URL and send success message
 	var jumpURL string = "https://discord.com/channels/" + draft.GuildID + "/" + draft.ChannelID + "/" + postResult.MessageID
-	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label: "Jump to message",
-					Style: discordgo.LinkButton,
-					URL:   jumpURL,
-				},
-			},
-		},
-	}
-
-	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content:    fmt.Sprintf(":white_check_mark: **Message posted!** Here's what was sent:\n> %s", truncateContent(draft.Content, 200)),
-			Flags:      discordgo.MessageFlagsEphemeral,
-			Components: components,
-		},
-	})
-	if err != nil {
-		logging.Error("Failed to send success response",
-			logging.Err("error", err),
-			logging.String("user_id", userID),
-		)
-	}
+	RespondWithSuccessAndJumpURL(s, i,
+		fmt.Sprintf(":white_check_mark: **Message posted!** Here's what was sent:\n> %s", truncateContent(draft.Content, 200)),
+		jumpURL,
+		"Jump to message")
 }
 
 // handleComposeCancelAfterError deletes the draft after a post failure.
@@ -1236,16 +1065,19 @@ func handleComposeCancelAfterError(s *discordgo.Session, i *discordgo.Interactio
 
 	// Look up draft
 	var draftKey string = getDraftKey(userID, guildID)
+	draftStoreMu.Lock()
 	var draft *Draft
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
+		draftStoreMu.Unlock()
 		respondToUser(s, i, ":wastebasket: **Draft discarded.** Use `/compose draft` to create a new draft.")
 		return
 	}
 
 	// Delete draft
 	delete(draftStore, draftKey)
+	draftStoreMu.Unlock()
 
 	logging.Info("Draft discarded after error",
 		logging.String("user_id", userID),
