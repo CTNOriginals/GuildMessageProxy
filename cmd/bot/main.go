@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -13,15 +14,18 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/commands"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/events"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/health"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
 
 var (
-	Token   string
-	GuildID string
-	Global  bool
-	NoSync  bool
+	Token        string
+	GuildID      string
+	Global       bool
+	NoSync       bool
+	DatabasePath string
+	UseMemory    bool
 )
 
 func init() {
@@ -32,6 +36,8 @@ func init() {
 	flag.StringVar(&GuildID, "guild", os.Getenv("DEV_GUILD_ID"), "Guild ID for command registration (dev mode)")
 	flag.BoolVar(&Global, "global", false, "Register commands globally (prod mode)")
 	flag.BoolVar(&NoSync, "no-sync", false, "Skip command sync for faster restarts")
+	flag.StringVar(&DatabasePath, "db", os.Getenv("DATABASE_PATH"), "Path to SQLite database file")
+	flag.BoolVar(&UseMemory, "memory", false, "Use in-memory storage instead of SQLite (for testing)")
 	flag.Parse()
 }
 
@@ -47,8 +53,25 @@ func main() {
 	fmt.Printf("\n\n---- START %s ----\n", startTime.Format(time.TimeOnly))
 
 	// Initialize storage
-	var store storage.Store = storage.NewMemoryStore()
-	logging.Info("storage initialized", logging.String("type", "memory"))
+	var store storage.Store
+	var storageType string
+
+	if UseMemory {
+		store = storage.NewMemoryStore()
+		storageType = "memory"
+	} else {
+		var dbPath = DatabasePath
+		if dbPath == "" {
+			dbPath = "guildmessageproxy.db"
+		}
+		var sqliteStore, err = storage.NewSQLiteStore(dbPath)
+		if err != nil {
+			logging.Fatal("failed to initialize sqlite storage", logging.Err("error", err))
+		}
+		store = sqliteStore
+		storageType = "sqlite"
+	}
+	logging.Info("storage initialized", logging.String("type", storageType))
 
 	// Initialize command handlers with storage
 	commands.Store = store
@@ -73,6 +96,31 @@ func main() {
 	}
 
 	logging.Info("discord session opened")
+
+	// Start health check server
+	var healthServer *health.Server = health.NewServer(bot, startTime)
+	err = healthServer.Start(":8080")
+	if err != nil {
+		logging.Error("failed to start health server", logging.Err("error", err))
+		// Don't fail startup, just log the error
+	}
+
+	// Start draft cleanup goroutine
+	go func() {
+		var ticker = time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				var cleaned = commands.CleanupExpiredDrafts()
+				if cleaned > 0 {
+					logging.Info("draft cleanup completed",
+						logging.Int("cleaned_count", cleaned),
+					)
+				}
+			}
+		}
+	}()
 
 	// Sync commands if not disabled
 	if !NoSync {
@@ -110,6 +158,14 @@ func main() {
 
 	var shutdownTime = time.Now()
 	fmt.Printf("---- END %s (Runtime: %s) ----\n\n", shutdownTime.Format(time.TimeOnly), shutdownTime.Sub(startTime))
+
+	// Shutdown health server
+	var shutdownCtx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = healthServer.Stop(shutdownCtx)
+	if err != nil {
+		logging.Warn("health server shutdown error", logging.Err("error", err))
+	}
 
 	// Cleanly close down the Discord session.
 	bot.Close()

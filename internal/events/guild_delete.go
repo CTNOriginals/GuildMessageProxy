@@ -11,6 +11,7 @@ import (
 // Policy: Hard delete on leave (as documented in infrastructure.md).
 func HandleGuildDelete(store storage.Store) func(*discordgo.Session, *discordgo.GuildDelete) {
 	return func(s *discordgo.Session, g *discordgo.GuildDelete) {
+		defer recoverPanic("HandleGuildDelete")
 		logging.Info("guild delete received",
 			logging.String("guild_id", g.ID),
 		)

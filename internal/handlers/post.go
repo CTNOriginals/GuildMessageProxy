@@ -19,7 +19,17 @@ type PostResult struct {
 
 // PostProxiedMessage posts content to a channel via webhook.
 // Creates webhook if needed, stores metadata, returns result.
-func PostProxiedMessage(s *discordgo.Session, guildID, channelID, content, ownerID string, store storage.Store) PostResult {
+func PostProxiedMessage(s DiscordSession, guildID, channelID, content, ownerID string, store storage.Store) PostResult {
+	// Trigger typing indicator before webhook operations
+	var typingErr error = s.ChannelTyping(channelID)
+	if typingErr != nil {
+		// Non-fatal: log but continue
+		logging.Debug("Failed to trigger typing indicator",
+			logging.String("channel_id", channelID),
+			logging.Err("error", typingErr),
+		)
+	}
+
 	// Get or create webhook for channel
 	webhook, err := getOrCreateWebhook(s, channelID)
 	if err != nil {
@@ -29,7 +39,7 @@ func PostProxiedMessage(s *discordgo.Session, guildID, channelID, content, owner
 		)
 		return PostResult{
 			Success: false,
-			Error:   "Failed to create webhook for posting. Please check bot permissions.",
+			Error:   "Failed to create webhook. Ensure the bot has Manage Webhooks permission in this channel.",
 		}
 	}
 
@@ -49,7 +59,7 @@ func PostProxiedMessage(s *discordgo.Session, guildID, channelID, content, owner
 		)
 		return PostResult{
 			Success: false,
-			Error:   "Failed to post message via webhook.",
+			Error:   "Failed to post message. The webhook may have been deleted. Try again or contact an admin.",
 		}
 	}
 
@@ -93,7 +103,7 @@ func PostProxiedMessage(s *discordgo.Session, guildID, channelID, content, owner
 }
 
 // getOrCreateWebhook finds existing webhook or creates new one
-func getOrCreateWebhook(s *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
+func getOrCreateWebhook(s DiscordSession, channelID string) (*discordgo.Webhook, error) {
 	// List existing webhooks in the channel
 	webhooks, err := s.ChannelWebhooks(channelID)
 	if err != nil {
@@ -101,8 +111,9 @@ func getOrCreateWebhook(s *discordgo.Session, channelID string) (*discordgo.Webh
 	}
 
 	// Look for an existing webhook created by this bot
+	var botUser *discordgo.User = s.BotUser()
 	for _, webhook := range webhooks {
-		if webhook.User != nil && webhook.User.ID == s.State.User.ID {
+		if webhook.User != nil && botUser != nil && webhook.User.ID == botUser.ID {
 			// Found existing webhook created by bot
 			return webhook, nil
 		}

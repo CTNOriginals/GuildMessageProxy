@@ -7,6 +7,7 @@ import (
 
 // HandleReady logs bot startup confirmation.
 func HandleReady(s *discordgo.Session, r *discordgo.Ready) {
+	defer recoverPanic("HandleReady")
 	logging.Info("bot ready",
 		logging.String("username", r.User.Username),
 		logging.String("session_id", r.SessionID),

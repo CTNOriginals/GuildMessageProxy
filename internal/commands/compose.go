@@ -14,28 +14,48 @@ import (
 // Must be initialized from main.go before commands are used.
 var Store storage.Store
 
+// DraftTTL is the duration after which drafts expire and are eligible for cleanup.
+var DraftTTL = 24 * time.Hour
+
 // Draft stores temporary compose state before posting.
 type Draft struct {
-	UserID      string
-	GuildID     string
-	ChannelID   string
-	Content     string
-	CreatedAt   time.Time
-	IsEdit      bool        // true if this is an edit proposal
+	UserID        string
+	GuildID       string
+	ChannelID     string
+	Content       string
+	CreatedAt     time.Time
+	ExpiresAt     time.Time // TTL expiration time for draft cleanup
+	IsEdit        bool      // true if this is an edit proposal
 	OriginalMsgID string    // for edit proposals: the original message ID
 }
 
 // draftStore holds pending drafts (key: userID:guildID).
 var draftStore map[string]*Draft = make(map[string]*Draft)
 
+// CleanupExpiredDrafts removes drafts older than their ExpiresAt time.
+// Returns the count of cleaned drafts.
+func CleanupExpiredDrafts() int {
+	var now = time.Now()
+	var cleaned int
+
+	for key, draft := range draftStore {
+		if now.After(draft.ExpiresAt) {
+			delete(draftStore, key)
+			cleaned++
+		}
+	}
+
+	return cleaned
+}
+
 // getDraftKey generates a unique key for user's draft in a guild.
 func getDraftKey(userID, guildID string) string {
 	return userID + ":" + guildID
 }
 
-// ComposeCreateDefinition with content and optional channel option.
-var ComposeCreateDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
-	Name:        string(ComposeCreate),
+// ComposeDraftDefinition with content and optional channel option.
+var ComposeDraftDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
+	Name:        string(ComposeDraft),
 	Description: "Create a new proxied message draft",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
@@ -57,14 +77,18 @@ var ComposeCreateDefinition *discordgo.ApplicationCommand = &discordgo.Applicati
 	},
 }
 
-// ComposeCreateExecute handles the compose-create command.
-func ComposeCreateExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+// ComposeCreateDefinition is an alias for backward compatibility.
+var ComposeCreateDefinition *discordgo.ApplicationCommand = ComposeDraftDefinition
+
+// ComposeDraftExecute handles the compose-draft command.
+func ComposeDraftExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var session handlers.DiscordSession = handlers.NewDiscordSession(s)
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 	var channelID string = i.ChannelID
 
 	// Check permissions
-	var permResult handlers.PermissionResult = handlers.CanUseCompose(s, guildID, channelID, userID, Store)
+	var permResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, channelID, userID, Store, i.Member.Roles)
 	if !permResult.Allowed {
 		respondWithError(s, i, permResult.Error, nil)
 		return
@@ -94,21 +118,23 @@ func ComposeCreateExecute(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	}
 
 	// Verify target channel permissions
-	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(s, guildID, targetChannelID, userID, Store)
+	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, targetChannelID, userID, Store, i.Member.Roles)
 	if !targetPermResult.Allowed {
-		respondWithError(s, i, "You don't have permission to post in the target channel.", nil)
+		respondWithError(s, i, "You don't have permission to post in this channel. You need Send Messages permission, or an allowed role set by server admins.", nil)
 		return
 	}
 
 	// Store draft
 	var draftKey string = getDraftKey(userID, guildID)
+	var now = time.Now()
 	var draft Draft = Draft{
-		UserID:      userID,
-		GuildID:     guildID,
-		ChannelID:   targetChannelID,
-		Content:     content,
-		CreatedAt:   time.Now(),
-		IsEdit:      false,
+		UserID:        userID,
+		GuildID:       guildID,
+		ChannelID:     targetChannelID,
+		Content:       content,
+		CreatedAt:     now,
+		ExpiresAt:     now.Add(DraftTTL),
+		IsEdit:        false,
 		OriginalMsgID: "",
 	}
 	draftStore[draftKey] = &draft
@@ -137,9 +163,12 @@ func ComposeCreateExecute(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	}
 }
 
-// ComposePostDefinition for direct posting without preview.
-var ComposePostDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
-	Name:        string(ComposePost),
+// ComposeCreateExecute is an alias for backward compatibility.
+var ComposeCreateExecute func(s *discordgo.Session, i *discordgo.InteractionCreate) = ComposeDraftExecute
+
+// ComposeSendDefinition for direct posting without preview.
+var ComposeSendDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
+	Name:        string(ComposeSend),
 	Description: "Post a message directly without preview",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
@@ -161,14 +190,18 @@ var ComposePostDefinition *discordgo.ApplicationCommand = &discordgo.Application
 	},
 }
 
-// ComposePostExecute posts directly without preview.
-func ComposePostExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+// ComposePostDefinition is an alias for backward compatibility.
+var ComposePostDefinition *discordgo.ApplicationCommand = ComposeSendDefinition
+
+// ComposeSendExecute posts directly without preview.
+func ComposeSendExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var session handlers.DiscordSession = handlers.NewDiscordSession(s)
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 	var channelID string = i.ChannelID
 
 	// Check permissions
-	var permResult handlers.PermissionResult = handlers.CanUseCompose(s, guildID, channelID, userID, Store)
+	var permResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, channelID, userID, Store, i.Member.Roles)
 	if !permResult.Allowed {
 		respondWithError(s, i, permResult.Error, nil)
 		return
@@ -198,14 +231,14 @@ func ComposePostExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	// Verify target channel permissions
-	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(s, guildID, targetChannelID, userID, Store)
+	var targetPermResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, targetChannelID, userID, Store, i.Member.Roles)
 	if !targetPermResult.Allowed {
-		respondWithError(s, i, "You don't have permission to post in the target channel.", nil)
+		respondWithError(s, i, "You don't have permission to post in this channel. You need Send Messages permission, or an allowed role set by server admins.", nil)
 		return
 	}
 
 	// Post directly
-	var postResult handlers.PostResult = handlers.PostProxiedMessage(s, guildID, targetChannelID, content, userID, Store)
+	var postResult handlers.PostResult = handlers.PostProxiedMessage(session, guildID, targetChannelID, content, userID, Store)
 	if !postResult.Success {
 		respondWithError(s, i, postResult.Error, nil)
 		return
@@ -217,16 +250,43 @@ func ComposePostExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		logging.String("message_id", postResult.MessageID),
 	)
 
-	// Respond with success message including link
+	// Build jump URL and components for success message
 	var jumpURL string = "https://discord.com/channels/" + guildID + "/" + targetChannelID + "/" + postResult.MessageID
-	var successMsg string = "Message posted successfully! View it here: " + jumpURL
+	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label: "Jump to message",
+					Style: discordgo.LinkButton,
+					URL:   jumpURL,
+				},
+			},
+		},
+	}
 
-	respondToUser(s, i, successMsg)
+	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content:    "Message posted successfully!",
+			Flags:      discordgo.MessageFlagsEphemeral,
+			Components: components,
+		},
+	})
+
+	if err != nil {
+		logging.Error("Failed to send success response",
+			logging.Err("error", err),
+			logging.String("user_id", userID),
+		)
+	}
 }
 
-// ComposeProposeDefinition for proposing edits to existing messages.
-var ComposeProposeDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
-	Name:        string(ComposePropose),
+// ComposePostExecute is an alias for backward compatibility.
+var ComposePostExecute func(s *discordgo.Session, i *discordgo.InteractionCreate) = ComposeSendExecute
+
+// ComposeEditDefinition for proposing edits to existing messages.
+var ComposeEditDefinition *discordgo.ApplicationCommand = &discordgo.ApplicationCommand{
+	Name:        string(ComposeEdit),
 	Description: "Propose an edit to an existing proxied message",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
@@ -245,14 +305,18 @@ var ComposeProposeDefinition *discordgo.ApplicationCommand = &discordgo.Applicat
 	},
 }
 
-// ComposeProposeExecute handles edit proposals.
-func ComposeProposeExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+// ComposeProposeDefinition is an alias for backward compatibility.
+var ComposeProposeDefinition *discordgo.ApplicationCommand = ComposeEditDefinition
+
+// ComposeEditExecute handles edit proposals.
+func ComposeEditExecute(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var session handlers.DiscordSession = handlers.NewDiscordSession(s)
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 	var channelID string = i.ChannelID
 
 	// Check permissions
-	var permResult handlers.PermissionResult = handlers.CanUseCompose(s, guildID, channelID, userID, Store)
+	var permResult handlers.PermissionResult = handlers.CanUseCompose(session, guildID, channelID, userID, Store, i.Member.Roles)
 	if !permResult.Allowed {
 		respondWithError(s, i, permResult.Error, nil)
 		return
@@ -313,12 +377,14 @@ func ComposeProposeExecute(s *discordgo.Session, i *discordgo.InteractionCreate)
 
 	// Store edit proposal as draft
 	var draftKey string = getDraftKey(userID, guildID)
+	var now = time.Now()
 	var draft Draft = Draft{
 		UserID:        userID,
 		GuildID:       guildID,
 		ChannelID:     proxyMsg.ChannelID,
 		Content:       newContent,
-		CreatedAt:     time.Now(),
+		CreatedAt:     now,
+		ExpiresAt:     now.Add(DraftTTL),
 		IsEdit:        true,
 		OriginalMsgID: messageID,
 	}
@@ -348,8 +414,12 @@ func ComposeProposeExecute(s *discordgo.Session, i *discordgo.InteractionCreate)
 	}
 }
 
+// ComposeProposeExecute is an alias for backward compatibility.
+var ComposeProposeExecute func(s *discordgo.Session, i *discordgo.InteractionCreate) = ComposeEditExecute
+
 // handleComposePreviewPost posts the draft when Post button is clicked.
 func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var session handlers.DiscordSession = handlers.NewDiscordSession(s)
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 
@@ -359,7 +429,7 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending draft found. Please create a new message.", nil)
+		respondWithError(s, i, "No pending draft found. Create one with `/compose draft`.", nil)
 		return
 	}
 
@@ -376,7 +446,7 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 
 	// Post the message
-	var postResult handlers.PostResult = handlers.PostProxiedMessage(s, draft.GuildID, draft.ChannelID, draft.Content, draft.UserID, Store)
+	var postResult handlers.PostResult = handlers.PostProxiedMessage(session, draft.GuildID, draft.ChannelID, draft.Content, draft.UserID, Store)
 	if !postResult.Success {
 		respondWithError(s, i, postResult.Error, nil)
 		return
@@ -391,15 +461,26 @@ func handleComposePreviewPost(s *discordgo.Session, i *discordgo.InteractionCrea
 		logging.String("message_id", postResult.MessageID),
 	)
 
-	// Respond with success message including link
+	// Build jump URL and components for success message
 	var jumpURL string = "https://discord.com/channels/" + draft.GuildID + "/" + draft.ChannelID + "/" + postResult.MessageID
-	var successMsg string = "Message posted successfully! View it here: " + jumpURL
+	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label: "Jump to message",
+					Style: discordgo.LinkButton,
+					URL:   jumpURL,
+				},
+			},
+		},
+	}
 
 	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: successMsg,
-			Flags:   discordgo.MessageFlagsEphemeral,
+			Content:    "Message posted successfully!",
+			Flags:      discordgo.MessageFlagsEphemeral,
+			Components: components,
 		},
 	})
 	if err != nil {
@@ -442,6 +523,7 @@ func handleComposePreviewCancel(s *discordgo.Session, i *discordgo.InteractionCr
 
 // handleEditPreviewApply applies the edit.
 func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var session handlers.DiscordSession = handlers.NewDiscordSession(s)
 	var userID string = i.Member.User.ID
 	var guildID string = i.GuildID
 
@@ -451,7 +533,7 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var exists bool
 	draft, exists = draftStore[draftKey]
 	if !exists || draft == nil {
-		respondWithError(s, i, "No pending edit proposal found. Please create a new edit proposal.", nil)
+		respondWithError(s, i, "No pending edit proposal found. Create one with `/compose edit`.", nil)
 		return
 	}
 
@@ -472,12 +554,12 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 	var lookupErr error
 	proxyMsg, lookupErr = handlers.GetProxiedMessage(Store, guildID, draft.OriginalMsgID)
 	if lookupErr != nil || proxyMsg == nil {
-		respondWithError(s, i, "Original message no longer exists.", lookupErr)
+		respondWithError(s, i, "Message not found. Only proxied messages can be edited. Check the message ID or link.", lookupErr)
 		return
 	}
 
 	// Apply the edit
-	var editResult handlers.EditResult = handlers.EditProxiedMessage(s, proxyMsg, draft.Content, userID, Store)
+	var editResult handlers.EditResult = handlers.EditProxiedMessage(session, proxyMsg, draft.Content, userID, Store)
 	if !editResult.Success {
 		respondWithError(s, i, editResult.Error, nil)
 		return
@@ -492,15 +574,26 @@ func handleEditPreviewApply(s *discordgo.Session, i *discordgo.InteractionCreate
 		logging.String("message_id", draft.OriginalMsgID),
 	)
 
-	// Respond with success
+	// Build jump URL and components for success message
 	var jumpURL string = "https://discord.com/channels/" + draft.GuildID + "/" + draft.ChannelID + "/" + draft.OriginalMsgID
-	var successMsg string = "Message edited successfully! View it here: " + jumpURL
+	var components []discordgo.MessageComponent = []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label: "View edited message",
+					Style: discordgo.LinkButton,
+					URL:   jumpURL,
+				},
+			},
+		},
+	}
 
 	var err error = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: successMsg,
-			Flags:   discordgo.MessageFlagsEphemeral,
+			Content:    "Message edited successfully!",
+			Flags:      discordgo.MessageFlagsEphemeral,
+			Components: components,
 		},
 	})
 	if err != nil {
@@ -563,20 +656,37 @@ func respondWithError(s *discordgo.Session, i *discordgo.InteractionCreate, user
 }
 
 func init() {
-	// Register command definitions
+	// Register new command definitions (primary names)
+	CommandDefinitions[ComposeDraft] = SCommandDef{
+		Definition: ComposeDraftDefinition,
+		Execute:    ComposeDraftExecute,
+		Autocomplete: nil,
+	}
+	CommandDefinitions[ComposeSend] = SCommandDef{
+		Definition: ComposeSendDefinition,
+		Execute:    ComposeSendExecute,
+		Autocomplete: nil,
+	}
+	CommandDefinitions[ComposeEdit] = SCommandDef{
+		Definition: ComposeEditDefinition,
+		Execute:    ComposeEditExecute,
+		Autocomplete: nil,
+	}
+
+	// Register backward compatibility aliases (old names)
 	CommandDefinitions[ComposeCreate] = SCommandDef{
-		Definition: ComposeCreateDefinition,
-		Execute:    ComposeCreateExecute,
+		Definition: ComposeDraftDefinition,
+		Execute:    ComposeDraftExecute,
 		Autocomplete: nil,
 	}
 	CommandDefinitions[ComposePost] = SCommandDef{
-		Definition: ComposePostDefinition,
-		Execute:    ComposePostExecute,
+		Definition: ComposeSendDefinition,
+		Execute:    ComposeSendExecute,
 		Autocomplete: nil,
 	}
 	CommandDefinitions[ComposePropose] = SCommandDef{
-		Definition: ComposeProposeDefinition,
-		Execute:    ComposeProposeExecute,
+		Definition: ComposeEditDefinition,
+		Execute:    ComposeEditExecute,
 		Autocomplete: nil,
 	}
 

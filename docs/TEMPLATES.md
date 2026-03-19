@@ -144,7 +144,7 @@ When adding a new interaction type that needs its own map (e.g. MSelectMenuDefin
 - [ ] Define the struct (e.g. `type SSelectMenuDef struct { Execute func(...) }`)
 - [ ] Define the map type (e.g. `type MSelectMenuDefinitions map[TSelectMenu]SSelectMenuDef`)
 - [ ] Add routing branch in InteractionCreate
-- [ ] Update ARCHITECTURE.md and docs/roadmap/infrastructure.md
+- [ ] Update ARCHITECTURE.md and PROJECT_MAP.md
 
 ## Adding a New Command Group
 
@@ -227,10 +227,14 @@ type Store interface {
 }
 ```
 
-## Adding a New Roadmap Doc
+## Adding New Planning Documentation
 
-1. Create `docs/roadmap/<topic>.md` (e.g. `feature-voting-system.md`).
-2. Add a line to `docs/roadmap/overview.md` under "Roadmap Docs Index" if it is a major planning doc.
+For design documents and planning notes, add them to `docs/` directly or update existing docs:
+
+- For current project status and backlog: Update `docs/PROJECT_STATUS.md`
+- For architecture changes: Update `docs/ARCHITECTURE.md`
+- For route changes: Update `docs/ROUTE_MAP.md`
+- For implementation patterns: Update `docs/TEMPLATES.md`
 
 ## Checklist: New Compose Subcommand
 

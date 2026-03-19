@@ -20,6 +20,7 @@ type PreviewData struct {
 // RenderPreviewResponse creates an ephemeral preview response with Post/Cancel or Apply/Cancel buttons.
 // Returns InteractionResponse ready to send.
 func RenderPreviewResponse(data PreviewData) *discordgo.InteractionResponse {
+	var embed *discordgo.MessageEmbed = buildPreviewEmbed(data)
 	var content string = buildPreviewContent(data)
 
 	// Build action row with appropriate buttons
@@ -52,33 +53,92 @@ func RenderPreviewResponse(data PreviewData) *discordgo.InteractionResponse {
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content:    content,
+			Embeds:     []*discordgo.MessageEmbed{embed},
 			Flags:      discordgo.MessageFlagsEphemeral,
 			Components: components,
 		},
 	}
 }
 
-// buildPreviewContent formats the preview message content
-func buildPreviewContent(data PreviewData) string {
-	var header string
+// buildPreviewEmbed creates a Discord embed for preview display
+func buildPreviewEmbed(data PreviewData) *discordgo.MessageEmbed {
+	var title string
+	var color int
+	var footerText string
+
 	if data.IsEdit {
-		header = "**Edit Preview**\nPreview of your edited message:"
+		title = "Edit Preview"
+		color = 0xe67e22 // Orange for edit
+		footerText = "Click Apply to confirm the edit, or Cancel to discard."
 	} else {
-		header = "**Compose Preview**\nPreview of your message:"
+		title = "Compose Preview"
+		color = 0x3498db // Blue for compose
+		footerText = "Click Post to send the message, or Cancel to discard."
 	}
 
-	// Format the message content in a quote block for clarity
-	var messagePreview string = fmt.Sprintf("> %s", data.Content)
-
-	// Add metadata
-	var metadata string = fmt.Sprintf(
-		"\n\n**Target Channel:** <#%s>\n**Posted via:** GuildMessageProxy",
-		data.TargetChannel,
-	)
+	// Build fields for metadata
+	var fields []*discordgo.MessageEmbedField = []*discordgo.MessageEmbedField{
+		{
+			Name:   "Target Channel",
+			Value:  fmt.Sprintf("<#%s>", data.TargetChannel),
+			Inline: true,
+		},
+	}
 
 	if data.IsEdit && data.OriginalMsgID != "" {
-		metadata += fmt.Sprintf("\n**Original Message ID:** %s", data.OriginalMsgID)
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:   "Original Message",
+			Value:  fmt.Sprintf("`%s`", data.OriginalMsgID),
+			Inline: true,
+		})
 	}
 
-	return header + "\n\n" + messagePreview + metadata + "\n\nClick **Post** to confirm or **Cancel** to discard."
+	return &discordgo.MessageEmbed{
+		Title:       title,
+		Description: fmt.Sprintf("```\n%s\n```", data.Content),
+		Color:       color,
+		Fields:      fields,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: footerText,
+		},
+	}
+}
+
+// RenderPreviewEmbed returns just the embed for cases where the caller
+// needs to customize the response wrapper.
+func RenderPreviewEmbed(data PreviewData) *discordgo.MessageEmbed {
+	return buildPreviewEmbed(data)
+}
+
+// buildPreviewContent creates a text representation of the preview for display.
+// Used for simple text-based previews without embeds.
+func buildPreviewContent(data PreviewData) string {
+	var title string
+	var actionVerb string
+
+	if data.IsEdit {
+		title = "**Edit Preview**"
+		actionVerb = "Apply"
+	} else {
+		title = "**Compose Preview**"
+		actionVerb = "Post"
+	}
+
+	var content string = data.Content
+	if content != "" {
+		// Quote the content
+		content = "> " + content
+	}
+
+	var result string = fmt.Sprintf("%s\n\n%s\n\n", title, content)
+	result += fmt.Sprintf("**Target Channel:** <#%s>\n", data.TargetChannel)
+
+	if data.IsEdit && data.OriginalMsgID != "" {
+		result += fmt.Sprintf("**Original Message:** `%s`\n", data.OriginalMsgID)
+	}
+
+	result += "\n**Posted via:** GuildMessageProxy\n"
+	result += fmt.Sprintf("Click **%s** to confirm", actionVerb)
+
+	return result
 }
