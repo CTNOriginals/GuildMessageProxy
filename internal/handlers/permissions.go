@@ -1,3 +1,6 @@
+// Package handlers provides Discord interaction handlers and permission checking utilities.
+// It contains functions for validating user permissions for compose commands and
+// managing access control based on guild configuration.
 package handlers
 
 import (
@@ -6,10 +9,12 @@ import (
 	"github.com/CTNOriginals/GuildMessageProxy/internal/storage"
 )
 
-// PermissionResult holds permission check outcome
+// PermissionResult holds permission check outcome.
 type PermissionResult struct {
+	// Allowed indicates whether the permission check passed.
 	Allowed bool
-	Error   string
+	// Error contains a human-readable error message if Allowed is false.
+	Error string
 }
 
 // hasAnyRole checks if user has at least one of the allowed roles.
@@ -51,8 +56,25 @@ func isChannelAllowed(channelID string, config *storage.GuildConfig) bool {
 	return false
 }
 
-// CanUseCompose checks if a user has permission to use compose commands.
-// Checks: SendMessages permission, allowed roles from guild config, channel restrictions.
+// CanUseCompose checks if a user has permission to use compose commands in a given channel.
+//
+// Parameters:
+//   - s: Discord session for API calls
+//   - guildID: The guild (server) ID to check permissions in
+//   - channelID: The channel ID where the command will be used
+//   - userID: The Discord user ID to check permissions for
+//   - store: Storage interface for retrieving guild configuration
+//   - memberRoles: List of role IDs assigned to the user
+//
+// Returns a PermissionResult indicating whether the user is allowed to use compose commands.
+//
+// Permission checks performed in order:
+//   1. Channel existence and bot access
+//   2. User's channel permissions retrieval
+//   3. SendMessages permission check
+//   4. Allowed roles check (if configured in guild)
+//   5. Channel restrictions check
+//   6. Channel whitelist check (if configured)
 func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store storage.Store, memberRoles []string) PermissionResult {
 	// 1. Verify the channel exists and bot can access it
 	_, err := s.Channel(channelID)
@@ -77,7 +99,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if perms&discordgo.PermissionSendMessages == 0 {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "You need permission to send messages in this channel.",
+			Error:   "You need 'Send Messages' permission in this channel to use this command.",
 		}
 	}
 
@@ -98,7 +120,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 		if !hasAnyRole(memberRoles, config.AllowedRoles) {
 			return PermissionResult{
 				Allowed: false,
-				Error:   "You need one of the allowed roles to use this command. Contact server admins.",
+				Error:   "You need a specific role to use this command. Contact a server admin to check allowed roles.",
 			}
 		}
 	}
@@ -107,7 +129,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if isChannelRestricted(channelID, config) {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "This channel is restricted from using compose commands.",
+			Error:   "This channel is restricted. Compose commands cannot be used here. Contact server admins to remove this channel from the restriction list.",
 		}
 	}
 
@@ -115,7 +137,7 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	if !isChannelAllowed(channelID, config) {
 		return PermissionResult{
 			Allowed: false,
-			Error:   "This channel is not allowed for compose commands.",
+			Error:   "This channel is not on the allowed list for compose commands. Contact server admins to add this channel, or use a permitted channel.",
 		}
 	}
 
@@ -125,7 +147,14 @@ func CanUseCompose(s DiscordSession, guildID, channelID, userID string, store st
 	}
 }
 
-// IsMessageOwner checks if user is the original message owner.
+// IsMessageOwner checks if a user is the original owner of a proxied message.
+//
+// Parameters:
+//   - proxyMsg: The proxied message to check ownership of
+//   - userID: The Discord user ID to verify
+//
+// Returns true if the userID matches the message's OwnerID, false otherwise.
+// Returns false if proxyMsg is nil.
 func IsMessageOwner(proxyMsg *storage.ProxyMessage, userID string) bool {
 	if proxyMsg == nil {
 		return false

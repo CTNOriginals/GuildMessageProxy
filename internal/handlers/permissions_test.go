@@ -219,7 +219,7 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 			memberRoles:  []string{"role1", "role3"},
 			allowedRoles: []string{"role2", "role4"},
 			wantAllowed:  false,
-			wantError:    "You need one of the allowed roles to use this command. Contact server admins.",
+			wantError:    "You need a specific role to use this command. Contact a server admin to check allowed roles.",
 		},
 		{
 			name:         "no_allowed_roles_configured",
@@ -236,7 +236,7 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 			allowedRoles:  []string{},
 			restrictedChs: []string{"channel123"},
 			wantAllowed:   false,
-			wantError:     "This channel is restricted from using compose commands.",
+			wantError:     "This channel is restricted. Compose commands cannot be used here. Contact server admins to remove this channel from the restriction list.",
 		},
 		{
 			name:         "channel_not_in_whitelist",
@@ -245,7 +245,7 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 			allowedRoles: []string{},
 			allowedChs:   []string{"channel456", "channel789"},
 			wantAllowed:  false,
-			wantError:    "This channel is not allowed for compose commands.",
+			wantError:    "This channel is not on the allowed list for compose commands. Contact server admins to add this channel, or use a permitted channel.",
 		},
 		{
 			name:         "channel_in_whitelist",
@@ -269,8 +269,8 @@ func TestCanUseCompose_WithRoleChecks(t *testing.T) {
 				},
 			}
 
-			var mockStore *MockStore = NewMockStore()
-			if tt.allowedRoles != nil || tt.restrictedChs != nil || tt.allowedChs != nil {
+		var mockStore *storage.MockStore = storage.NewMockStore()
+		if tt.allowedRoles != nil || tt.restrictedChs != nil || tt.allowedChs != nil {
 				var config storage.GuildConfig = storage.GuildConfig{
 					GuildID:            "guild123",
 					AllowedRoles:       tt.allowedRoles,
@@ -303,8 +303,8 @@ func TestCanUseCompose_ConfigError(t *testing.T) {
 		},
 	}
 
-	var mockStore *MockStore = NewMockStore()
-	mockStore.getError = errors.New("database error")
+	var mockStore *storage.MockStore = storage.NewMockStore()
+	mockStore.GetError = errors.New("database error")
 
 	var result PermissionResult = CanUseCompose(mockSession, "guild123", "channel123", "user123", mockStore, []string{})
 

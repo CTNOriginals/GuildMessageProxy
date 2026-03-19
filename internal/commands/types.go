@@ -26,6 +26,7 @@ const (
 	ComposeDraft TSlashCommand = "compose-draft"
 	ComposeSend  TSlashCommand = "compose-send"
 	ComposeEdit  TSlashCommand = "compose-edit"
+	ComposeHelp  TSlashCommand = "compose-help"
 
 	// Backward compatibility aliases (old names)
 	ComposeCreate  TSlashCommand = ComposeDraft
@@ -52,6 +53,18 @@ const (
 	// Edit proposal buttons
 	ButtonEditPreviewApply  TButton = "button_edit_preview_apply"
 	ButtonEditPreviewCancel TButton = "button_edit_preview_cancel"
+
+	// Discard confirmation buttons
+	ButtonComposeConfirmDiscard TButton = "button_compose_confirm_discard"
+	ButtonComposeKeepDraft      TButton = "button_compose_keep_draft"
+
+	// Retry/cancel buttons after post failure
+	ButtonComposeRetryPost        TButton = "button_compose_retry_post"
+	ButtonComposeCancelAfterError TButton = "button_compose_cancel_after_error"
+
+	// Retry/cancel buttons after edit failure
+	ButtonEditRetryApply       TButton = "button_edit_retry_apply"
+	ButtonEditCancelAfterError TButton = "button_edit_cancel_after_error"
 )
 
 // Select menu constants follow naming: select_<context>_<action>
