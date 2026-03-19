@@ -43,7 +43,6 @@ Working Discord bot with core compose functionality:
 | Attachments support | Include images and files in messages                   | Phase 1 |
 | `/message info`     | View message metadata and history                      | Phase 2 |
 | `/message history`  | List messages by user or in channel                    | Phase 2 |
-| Database storage    | Replace in-memory with persistent storage              | Phase 3 |
 | Persistent drafts   | Save drafts across bot restarts                        | Phase 3 |
 
 
@@ -67,7 +66,6 @@ Working Discord bot with core compose functionality:
 
 | Feature               | Description                         | Complexity | Status        |
 | --------------------- | ----------------------------------- | ---------- | ------------- |
-| ~~`/message delete`~~ | ~~Delete a proxied message~~        | ~~Low~~    | ~~Completed~~ |
 | `/message info`       | View message metadata and history   | Low        | Pending       |
 | `/message history`    | List messages by user or in channel | Medium     | Pending       |
 
@@ -77,7 +75,6 @@ Working Discord bot with core compose functionality:
 
 | Feature                | Description                                | Complexity | Status        |
 | ---------------------- | ------------------------------------------ | ---------- | ------------- |
-| Database storage       | Replace in-memory with persistent storage  | High       | Pending       |
 | Persistent drafts      | Save drafts across bot restarts            | Medium     | Pending       |
 | ~~`/config role`~~     | ~~Restrict commands to specific roles~~    | ~~Low~~    | ~~Completed~~ |
 | ~~`/config channel`~~  | ~~Set default target channel~~             | ~~Low~~    | ~~Completed~~ |

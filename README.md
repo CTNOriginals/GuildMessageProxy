@@ -17,9 +17,16 @@ A Discord bot written in Go that allows you to compose messages with custom styl
 
 | Command | Description |
 |---------|-------------|
-| `/compose create <content> [channel]` | Create a draft with preview before posting |
-| `/compose post <content> [channel]` | Post a message directly without preview |
-| `/compose propose <message> <content>` | Propose an edit to an existing proxied message (owner only) |
+| `/compose-draft <content> [channel]` | Create a draft with preview before posting |
+| `/compose-send <content> [channel]` | Post a message directly without preview |
+| `/compose-edit <message> <content>` | Propose an edit to an existing proxied message (owner only) |
+| `/compose-help` | Show help for compose commands |
+| `/message-delete <message>` | Delete a proxied message you created |
+| `/config-role <role>` | Add role to allowed compose users |
+| `/config-channel <channel>` | Set default target channel |
+| `/config-restrict <channel>` | Blacklist channel from compose |
+| `/config-allow <channel>` | Whitelist channel for compose |
+| `/config-defaults` | View current guild configuration |
 
 ## Prerequisites
 
@@ -66,7 +73,7 @@ Already have a Discord bot token? Get started in 3 steps:
 
 3. **Try a command** in Discord:
    ```
-   /compose create Hello, World!
+   /compose-draft Hello, World!
    ```
 
 ## Running
@@ -99,7 +106,7 @@ make version   # Show current version
 
 - **Language:** Go 1.25
 - **Discord library:** [discordgo](https://github.com/bwmarrin/discordgo)
-- **Storage:** In-memory (with interface for future persistence)
+- **Storage:** SQLite (with in-memory option for testing)
 - **Posting:** Discord webhooks for flexible message attribution
 
 ## Documentation
@@ -109,17 +116,18 @@ For detailed documentation, see the [`docs/`](./docs/) folder:
 - [Architecture Overview](./docs/ARCHITECTURE.md) - Package layout and design
 - [Project Map](./docs/PROJECT_MAP.md) - Directory structure
 - [Command Routes](./docs/ROUTE_MAP.md) - Command flows and handlers
-- [Roadmap](./docs/roadmap/) - Future plans and notes
 
 ## Project Status
 
 MVP is **complete**. All core features are implemented:
-- Full command suite (`/compose create`, `/compose post`, `/compose propose`)
+- Full command suite (`/compose-draft`, `/compose-send`, `/compose-edit`, `/compose-help`)
 - Preview system with interactive buttons
 - Webhook-based message posting
 - Edit proposal workflow
 - Permission checking
 - Structured logging
+- Config commands for guild settings
+- Message deletion
 
 ## Planned Features
 
