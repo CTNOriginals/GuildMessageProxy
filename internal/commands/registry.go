@@ -2,9 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/CTNOriginals/GuildMessageProxy/internal/logging"
 )
 
 // CommandDefinitions maps slash command types to their full definitions.
@@ -113,12 +113,12 @@ func SyncCommands(session *discordgo.Session, guildID string) error {
 
 	// Check if sync is needed
 	if !needsSync(desired, existing) {
-		log.Println("Commands are up to date, skipping sync")
+		logging.Info("Commands are up to date, skipping sync")
 		return nil
 	}
 
 	// Perform bulk overwrite
-	log.Printf("Syncing %d commands...", len(desired))
+	logging.Info("Syncing commands", logging.Int("count", len(desired)))
 
 	var synced []*discordgo.ApplicationCommand
 	synced, err = session.ApplicationCommandBulkOverwrite(appID, guildID, desired)
@@ -127,6 +127,6 @@ func SyncCommands(session *discordgo.Session, guildID string) error {
 		return fmt.Errorf("failed to sync commands: %w", err)
 	}
 
-	log.Printf("Successfully synced %d commands", len(synced))
+	logging.Info("Successfully synced commands", logging.Int("count", len(synced)))
 	return nil
 }
